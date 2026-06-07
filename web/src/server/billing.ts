@@ -1,7 +1,7 @@
 import { one } from "./db";
 
-export const PESO = (minor: number) =>
-  "₱" + (minor / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const USD = (minor: number) =>
+  "$" + (minor / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function addInterval(d: Date, interval: "month" | "year" | null): Date {
   const r = new Date(d);
@@ -18,7 +18,7 @@ export async function ensureCustomer(userId: string) {
   if (!c) {
     c = await one(
       `INSERT INTO customers (user_id, default_currency) VALUES ($1, $2) RETURNING id, psp_customer_id`,
-      [userId, process.env.DEFAULT_CURRENCY || "PHP"]
+      [userId, process.env.DEFAULT_CURRENCY || "USD"]
     );
   }
   return c!;

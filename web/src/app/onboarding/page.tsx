@@ -32,7 +32,7 @@ export default function Onboarding() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [monthlyPrice, setMonthlyPrice] = useState("₱299.00/month");
+  const [monthlyPrice, setMonthlyPrice] = useState("$5.99/month");
   useEffect(() => {
     api.getPlans().then((list) => {
       const m = list.find((p) => p.code === "premium_monthly");

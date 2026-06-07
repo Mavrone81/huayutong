@@ -102,20 +102,20 @@ export default function Landing() {
         <div className="plans">
           <div className="card plan">
             <h3>Free</h3>
-            <Price label={price("free", "₱0")} fallbackInterval="forever" />
+            <Price label={price("free", "$0")} fallbackInterval="forever" />
             <ul><li>First skills of HSK 1</li><li>Daily review (limited)</li><li>All four languages</li></ul>
             <Link className="btn btn-ghost" href="/onboarding">Start free</Link>
           </div>
           <div className="card plan hot">
             <span className="tag">MOST POPULAR</span>
             <h3>Premium Monthly</h3>
-            <Price label={price("premium_monthly", "₱299.00/month")} fallbackInterval="month" />
+            <Price label={price("premium_monthly", "$5.99/month")} fallbackInterval="month" />
             <ul><li>Full HSK 1–6 course path</li><li>Unlimited smart reviews</li><li>Mock exams + readiness score</li><li>Offline lessons</li></ul>
             <Link className="btn btn-primary" href="/onboarding">{t("trial_cta", "Start 1-month free trial")}</Link>
           </div>
           <div className="card plan">
             <h3>Premium Annual</h3>
-            <Price label={price("premium_annual", "₱1,999.00/year")} fallbackInterval="year" />
+            <Price label={price("premium_annual", "$44.99/year")} fallbackInterval="year" />
             <ul><li>Everything in Monthly</li><li>Save 37%</li><li>Exam-date study plans</li></ul>
             <Link className="btn btn-navy" href="/onboarding">{t("trial_cta", "Start 1-month free trial")}</Link>
           </div>

@@ -1,7 +1,7 @@
 # MandaMix — Web App (full-stack)
 
 **Next.js (App Router) · TypeScript · Tailwind**, with a real backend: **PostgreSQL**,
-JWT auth, and **PayMongo** billing (PHP) — with a built-in **mock PSP** so it runs end-to-end
+JWT auth, and card billing in **USD** — with a built-in **mock PSP** so it runs end-to-end
 locally with no payment keys. Built from `design/mandamix_webapp_design.html` and the docs.
 
 ## Run (full stack)
@@ -58,13 +58,13 @@ src/
   components/            # PreviewBar, AppShell, Logo
   server/                # db, auth (scrypt+JWT), psp (PayMongo+mock), entitlement, billing
   lib/                   # dict (4-lang i18n), i18n, api client, types, HSK levels
-../db/schema.sql         # PostgreSQL schema   ../db/seed.sql  # plans/prices (PHP)
+../db/schema.sql         # PostgreSQL schema   ../db/seed.sql  # plans/prices (USD)
 docker-compose.yml       # local Postgres
 ```
 
 ## Verified flows
 
-register → me(free) → start trial → me(premium/trialing) → run-billing → active(charged ₱299) →
+register → me(free) → start trial → me(premium/trialing) → run-billing → active(charged $5.99) →
 cancel(keeps access) → run-billing → expired → me(free); plus failed-card → past_due, and
 auth/secret guards (401/403/409).
 
@@ -76,7 +76,7 @@ On register a user is auto-enrolled in HSK 1. The **dashboard** (`/me/progress`)
 (`/srs/queue` + `/srs/reviews`, SM-2-style scheduling) are all live. Completing a lesson awards
 XP, advances the streak, seeds SRS cards, and updates HSK-readiness. Premium lessons are gated by
 entitlement (free users get a 402 → paywall). **Pricing on the landing & onboarding pages pulls
-from `/billing/plans`** (PHP).
+from `/billing/plans`** (USD).
 
 ## Admin console (real, RBAC + audited)
 

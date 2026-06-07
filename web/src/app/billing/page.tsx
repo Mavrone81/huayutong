@@ -65,7 +65,7 @@ export default function Billing() {
               </div>
               <div className="card panel">
                 <h3>Billing history</h3>
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--line)", fontSize: 14 }}><span>Trial started</span><span className="chip navy">₱0.00</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--line)", fontSize: 14 }}><span>Trial started</span><span className="chip navy">$0.00</span></div>
                 <p style={{ color: "var(--ink-3)", fontSize: 13, marginTop: 14 }}>Receipts will appear here after your first charge. All invoices are downloadable and localized.</p>
                 <div style={{ marginTop: 18, padding: "14px 16px", background: "var(--bg)", borderRadius: 12, fontSize: 12.5, color: "var(--ink-2)" }}>
                   🔒 Payments are processed by PayMongo. MandaMix never stores your full card number.

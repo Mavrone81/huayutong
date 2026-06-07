@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 
-const peso = (m: number | null) => (m == null ? "—" : "₱" + (m / 100).toLocaleString("en-PH", { minimumFractionDigits: 2 }));
+const usd = (m: number | null) => (m == null ? "—" : "$" + (m / 100).toLocaleString("en-US", { minimumFractionDigits: 2 }));
 const MKT: Record<string, string> = { th: "🇹🇭 TH", vi: "🇻🇳 VN", ms: "🇲🇾 MY", en: "🌐 EN" };
 const chipFor = (s: string) => (s === "active" ? "teal" : s === "trialing" ? "gold" : s === "past_due" ? "red" : "navy");
 
@@ -103,13 +103,13 @@ function Console({ role, onLogout }: { role: string; onLogout: () => void }) {
             <h1>Operations overview</h1>
             <p className="sub">Live from PostgreSQL · refresh by reopening the tab</p>
             <div className="kpis">
-              <Kpi s="MRR" v={peso(ov.mrrMinor)} d="active subscriptions" up />
+              <Kpi s="MRR" v={usd(ov.mrrMinor)} d="active subscriptions" up />
               <Kpi s="Active subscribers" v={String(ov.activeSubs)} d="status = active" up />
               <Kpi s="In trial" v={String(ov.inTrial)} d="status = trialing" up />
               <Kpi s="Trial → paid" v={`${ov.conversionPct}%`} d="converted / started" up={ov.conversionPct >= 50} />
               <Kpi s="Past due (dunning)" v={String(ov.pastDue)} d="needs recovery" />
               <Kpi s="Payment success" v={`${ov.paymentSuccessPct}%`} d="succeeded / attempts" up={ov.paymentSuccessPct >= 90} />
-              <Kpi s="Refunds (30d)" v={peso(ov.refundsMinor)} d={`${ov.refundsCount} issued · audited`} />
+              <Kpi s="Refunds (30d)" v={usd(ov.refundsMinor)} d={`${ov.refundsCount} issued · audited`} />
               <Kpi s="Markets" v={String(ov.markets.length)} d="active languages" up />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18 }}>
@@ -157,10 +157,10 @@ function Console({ role, onLogout }: { role: string; onLogout: () => void }) {
                     <tr key={c.id}>
                       <td><b>{c.display_name || "—"}</b><br /><small style={{ color: "var(--ink-3)" }}>{c.email}</small></td>
                       <td>{MKT[c.ui_language] || c.ui_language}</td>
-                      <td>{c.plan_code ? `${c.plan_code === "premium_annual" ? "Annual" : "Monthly"} ${peso(c.amount_minor)}` : "—"}{c.price_override_minor != null && <span className="chip teal" style={{ fontSize: 10, marginLeft: 6 }}>override</span>}</td>
+                      <td>{c.plan_code ? `${c.plan_code === "premium_annual" ? "Annual" : "Monthly"} ${usd(c.amount_minor)}` : "—"}{c.price_override_minor != null && <span className="chip teal" style={{ fontSize: 10, marginLeft: 6 }}>override</span>}</td>
                       <td>{c.status ? <span className={"chip " + chipFor(c.status)}>{c.status}</span> : "—"}</td>
                       <td>{c.status === "trialing" ? dateLabel(c.trial_ends_at) : dateLabel(c.current_period_end)}</td>
-                      <td>{peso(c.ltv)}</td>
+                      <td>{usd(c.ltv)}</td>
                       <td><button className="btn btn-ghost btn-sm" onClick={() => openCustomer(c.id)}>Open</button></td>
                     </tr>
                   ))}
@@ -175,7 +175,7 @@ function Console({ role, onLogout }: { role: string; onLogout: () => void }) {
                   <div>
                     <Cov b="Plan" v={detail.plan_code || "—"} />
                     <Cov b="Trial ends" v={dateLabel(detail.trial_ends_at)} />
-                    <Cov b="Price" v={`${peso(detail.amount_minor)}${detail.price_override_minor != null ? " (override)" : ""}`} />
+                    <Cov b="Price" v={`${usd(detail.amount_minor)}${detail.price_override_minor != null ? " (override)" : ""}`} />
                     <Cov b="Payment method" v={detail.brand ? `${detail.brand} •••• ${detail.last4}` : "—"} />
                   </div>
                   <div>
@@ -188,7 +188,7 @@ function Console({ role, onLogout }: { role: string; onLogout: () => void }) {
                 <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
                   <button className="btn btn-navy btn-sm" onClick={() => act(() => adm("/trials/extend", { method: "POST", body: JSON.stringify({ customerId: detail.id, days: 7 }) }), "Trial extended +7 days")}>⏳ Extend trial +7d</button>
                   <button className="btn btn-navy btn-sm" onClick={() => {
-                    const amt = prompt("New price (PHP / month)", "4.99"); if (!amt) return;
+                    const amt = prompt("New price (USD / month)", "4.99"); if (!amt) return;
                     const reason = prompt("Reason (required, audited)"); if (!reason) return;
                     act(() => adm(`/customers/${detail.id}/price`, { method: "PUT", body: JSON.stringify({ amountMinor: Math.round(parseFloat(amt) * 100), reason }) }), `Price override ${amt}`);
                   }}>💲 Change price…</button>

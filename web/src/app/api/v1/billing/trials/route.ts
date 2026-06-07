@@ -1,6 +1,6 @@
 import { one } from "@/server/db";
 import { currentUserId, ok, err, readJson } from "@/server/http";
-import { ensureCustomer, addInterval, latestSubscription, PESO } from "@/server/billing";
+import { ensureCustomer, addInterval, latestSubscription, USD } from "@/server/billing";
 import { getPsp } from "@/server/psp";
 
 export const runtime = "nodejs";
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   if (!b?.plan_code || !b.payment_method) return err("missing_fields", "plan_code and payment_method are required", 400);
   if (b.plan_code === "free") return err("invalid_plan", "The free plan does not require a trial", 400);
 
-  const cur = process.env.DEFAULT_CURRENCY || "PHP";
+  const cur = process.env.DEFAULT_CURRENCY || "USD";
   const plan = await one<{ id: string; interval: "month" | "year" | null; trial_days: number }>(
     `SELECT id, interval, trial_days FROM plans WHERE code = $1 AND is_active`,
     [b.plan_code]
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
         id: sub!.id,
         status: sub!.status,
         planCode: sub!.plan_code,
-        priceLabel: sub!.amount_minor != null ? PESO(sub!.amount_minor) : null,
+        priceLabel: sub!.amount_minor != null ? USD(sub!.amount_minor) : null,
         trialEndsAt: sub!.trial_ends_at,
       },
     },

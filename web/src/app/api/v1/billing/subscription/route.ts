@@ -1,5 +1,5 @@
 import { currentUserId, ok, err } from "@/server/http";
-import { latestSubscription, PESO } from "@/server/billing";
+import { latestSubscription, USD } from "@/server/billing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ export async function GET() {
       status: s.status,
       cancelAtPeriodEnd: s.cancel_at_period_end,
       planCode: s.plan_code,
-      priceLabel: s.amount_minor != null ? PESO(s.amount_minor) : "—",
+      priceLabel: s.amount_minor != null ? USD(s.amount_minor) : "—",
       trialEndsAt: dateLabel(s.trial_ends_at),
       currentPeriodEnd: dateLabel(s.current_period_end),
       paymentMethod: s.brand ? `💳 ${s.brand} •••• ${s.last4}` : "—",
