@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { one, query } from "@/server/db";
 import { hashPassword, createSession } from "@/server/auth";
+import { ensureEnrollment } from "@/server/learning";
 import { err, readJson, setAuthCookies } from "@/server/http";
 
 export const runtime = "nodejs";
@@ -20,6 +21,7 @@ export async function POST(req: Request) {
     [b.email || null, b.phone || null, b.ui_language || "en", b.goal || null, b.name || null]
   );
   await query(`INSERT INTO auth_identities (user_id, provider, password_hash) VALUES ($1, 'password', $2)`, [u!.id, hashPassword(b.password)]);
+  await ensureEnrollment(u!.id);
   const t = await createSession(u!.id);
   const res = NextResponse.json({ user: { id: u!.id, status: "active" } }, { status: 201 });
   return setAuthCookies(res, t.accessToken, t.refreshToken, t.refreshTtl);

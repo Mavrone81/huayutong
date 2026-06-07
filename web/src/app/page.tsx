@@ -1,11 +1,27 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { Logo } from "@/components/Logo";
+import { api, PlanDTO } from "@/lib/api";
+
+function Price({ label, fallbackInterval }: { label: string; fallbackInterval: string }) {
+  const [amt, int] = label.split("/");
+  return <div className="price">{amt.trim()}<span> / {int ? int.trim() : fallbackInterval}</span></div>;
+}
 
 export default function Landing() {
   const { t } = useI18n();
+  const [plans, setPlans] = useState<Record<string, PlanDTO>>({});
+  useEffect(() => {
+    api.getPlans().then((list) => {
+      const m: Record<string, PlanDTO> = {};
+      list.forEach((p) => (m[p.code] = p));
+      setPlans(m);
+    }).catch(() => {});
+  }, []);
+  const price = (code: string, fallback: string) => plans[code]?.priceLabel ?? fallback;
   return (
     <section>
       <div style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
@@ -86,20 +102,20 @@ export default function Landing() {
         <div className="plans">
           <div className="card plan">
             <h3>Free</h3>
-            <div className="price">$0<span> / forever</span></div>
+            <Price label={price("free", "₱0")} fallbackInterval="forever" />
             <ul><li>First skills of HSK 1</li><li>Daily review (limited)</li><li>All four languages</li></ul>
             <Link className="btn btn-ghost" href="/onboarding">Start free</Link>
           </div>
           <div className="card plan hot">
             <span className="tag">MOST POPULAR</span>
             <h3>Premium Monthly</h3>
-            <div className="price">$5.99<span> / month</span></div>
+            <Price label={price("premium_monthly", "₱299.00/month")} fallbackInterval="month" />
             <ul><li>Full HSK 1–6 course path</li><li>Unlimited smart reviews</li><li>Mock exams + readiness score</li><li>Offline lessons</li></ul>
             <Link className="btn btn-primary" href="/onboarding">{t("trial_cta", "Start 1-month free trial")}</Link>
           </div>
           <div className="card plan">
             <h3>Premium Annual</h3>
-            <div className="price">$44.99<span> / year</span></div>
+            <Price label={price("premium_annual", "₱1,999.00/year")} fallbackInterval="year" />
             <ul><li>Everything in Monthly</li><li>Save 37%</li><li>Exam-date study plans</li></ul>
             <Link className="btn btn-navy" href="/onboarding">{t("trial_cta", "Start 1-month free trial")}</Link>
           </div>

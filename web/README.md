@@ -42,6 +42,7 @@ The provider auto-switches from mock → real PayMongo. Point a PayMongo webhook
 |---|---|
 | Auth | `POST /auth/register · /auth/login · /auth/logout · /auth/refresh`, `GET /me` |
 | Billing | `GET /billing/plans · /billing/subscription`, `POST /billing/setup-intent · /billing/trials · /billing/subscription/cancel` |
+| Learning | `GET /courses · /me/progress · /lessons/{id} · /srs/queue`, `POST /lessons/{id}/complete · /srs/reviews`, `PUT /me/daily-goal` |
 | System | `POST /webhooks/paymongo`, `POST /internal/run-billing` |
 
 Auth = httpOnly **access (JWT, 15m)** + **refresh (opaque, 30d, hashed in `sessions`)** cookies.
@@ -66,7 +67,19 @@ register → me(free) → start trial → me(premium/trialing) → run-billing �
 cancel(keeps access) → run-billing → expired → me(free); plus failed-card → past_due, and
 auth/secret guards (401/403/409).
 
+## Learning (real, Postgres-backed)
+
+HSK 1 content is seeded (`db/seed_content.sql`: 5 skills, 5 lessons, 23 items, 4-language glosses).
+On register a user is auto-enrolled in HSK 1. The **dashboard** (`/me/progress`), **lesson**
+(MCQ generated from item glosses in the user's language → `/lessons/{id}/complete`), and **SRS**
+(`/srs/queue` + `/srs/reviews`, SM-2-style scheduling) are all live. Completing a lesson awards
+XP, advances the streak, seeds SRS cards, and updates HSK-readiness. Premium lessons are gated by
+entitlement (free users get a 402 → paywall). **Pricing on the landing & onboarding pages pulls
+from `/billing/plans`** (PHP).
+
 ## Still mock
 
-Learning data (`api.getDashboard`) and the admin console are still mock — wire them to course /
-progress tables next. Landing/onboarding price copy is static USD; the live plans API returns PHP.
+The admin console reads mock data, and a couple of dashboard widgets (weekly-activity chart,
+leaderboard) are cosmetic. Lesson exercises are generated as multiple-choice from the item glosses
+(the prototype's tone/sentence/match drills are a future enhancement). Mock exams / study plans
+(HSK-prep screens) are still static.

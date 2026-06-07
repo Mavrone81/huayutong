@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, ReactNode } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
@@ -32,6 +32,13 @@ export default function Onboarding() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [monthlyPrice, setMonthlyPrice] = useState("₱299.00/month");
+  useEffect(() => {
+    api.getPlans().then((list) => {
+      const m = list.find((p) => p.code === "premium_monthly");
+      if (m) setMonthlyPrice(m.priceLabel);
+    }).catch(() => {});
+  }, []);
 
   const createAccount = async () => {
     if (!consent) { alert("Please accept the required Terms & Privacy consent to continue."); return; }
@@ -175,7 +182,7 @@ export default function Onboarding() {
           <p className="hint">Full premium access until 6 July. We&apos;ll remind you 3 days and 24 hours before the trial ends. Cancel anytime — no charge.</p>
           <div className="card" style={{ padding: "18px 22px", margin: "0 auto 26px", maxWidth: 380, display: "flex", gap: 14, alignItems: "center", textAlign: "left" }}>
             <span style={{ fontSize: 24 }}>💳</span>
-            <div style={{ flex: 1 }}><b style={{ fontSize: 14 }}>Premium Monthly — $5.99/mo</b><br /><small style={{ color: "var(--ink-3)" }}>Card required · first charge 6 July 2026</small></div>
+            <div style={{ flex: 1 }}><b style={{ fontSize: 14 }}>Premium Monthly — {monthlyPrice}</b><br /><small style={{ color: "var(--ink-3)" }}>Card required · first charge in 30 days · cancel anytime</small></div>
           </div>
           <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={startTrial}>{busy ? "Starting…" : "Add card & start learning →"}</button>
           <p style={{ marginTop: 14, fontSize: 12, color: "var(--ink-3)" }}>🔒 Secured by Stripe — your card details never touch our servers</p>

@@ -54,23 +54,25 @@ export const api = {
     return j?.subscription ?? null;
   },
 
-  // ---- learning (mock until course tables are seeded with progress) ----
-  getDashboard: (): Promise<DashboardData> =>
-    Promise.resolve({
-      goalMinutes: 10, goalDone: 7, streak: 12, reviewsDue: 14, hsk1Readiness: 78,
-      skills: [
-        { hanzi: "问", title: "Greetings & introductions", sub: "20/20 words · 你好 · 谢谢 · 再见 · 请问", progress: 100, state: "done", color: "var(--teal)" },
-        { hanzi: "数", title: "Numbers & time", sub: "24/24 words · 一 二 三 · 今天 · 点", progress: 100, state: "done", color: "var(--teal)" },
-        { hanzi: "家", title: "Family & people", sub: "17/26 words · 妈妈 · 爸爸 · 哥哥 · 妹妹", progress: 65, state: "active", color: "var(--navy-2)" },
-        { hanzi: "食", title: "Food & drink", sub: "0/28 words · 米饭 · 茶 · 水 · 苹果", progress: 0, state: "locked", color: "#B6C3D2" },
-        { hanzi: "行", title: "Getting around", sub: "0/24 words · 出租车 · 飞机 · 火车站", progress: 0, state: "locked", color: "#B6C3D2" },
-      ],
-      srs: [
-        { hanzi: "妈妈", gloss: "māma · mom", due: "due now" },
-        { hanzi: "哥哥", gloss: "gēge · older brother", due: "due now" },
-        { hanzi: "谁", gloss: "shéi · who", due: "due now" },
-        { hanzi: "谢谢", gloss: "xièxie · thank you", due: "2h" },
-        { hanzi: "再见", gloss: "zàijiàn · goodbye", due: "5h" },
-      ],
-    }),
+  // ---- learning (real, Postgres-backed) ----
+  getProgress: (): Promise<ProgressDTO> => call("/me/progress"),
+  getCourses: () => call("/courses"),
+  getLesson: (id: string): Promise<LessonDTO> => call(`/lessons/${id}`),
+  completeLesson: (id: string, score = 100): Promise<{ xpAwarded: number; streak: number; accuracy: number }> =>
+    call(`/lessons/${id}/complete`, { method: "POST", body: JSON.stringify({ score }) }),
+  getSrsQueue: () => call("/srs/queue"),
+  submitReview: (cardId: string, grade: number) =>
+    call("/srs/reviews", { method: "POST", body: JSON.stringify({ cardId, grade }) }),
+  setDailyGoal: (minutes: number) => call("/me/daily-goal", { method: "PUT", body: JSON.stringify({ minutes }) }),
 };
+
+export interface ProgressSkill { hanzi: string; title: string; lessonId: string; sub: string; progress: number; state: "done" | "active" | "locked"; color: string }
+export interface ProgressDTO {
+  xp: number; streak: number; longestStreak: number; reviewsDue: number;
+  goalMinutes: number; goalDone: number; hsk1Readiness: number;
+  nextLessonId: string | null;
+  skills: ProgressSkill[];
+  srs: { hanzi: string; gloss: string; due: string }[];
+}
+export interface LessonItemDTO { id: string; hanzi: string; pinyin: string; audioUrl: string | null; gloss: string; options: string[]; answer: number }
+export interface LessonDTO { id: string; title: string; icon: string; items: LessonItemDTO[] }
