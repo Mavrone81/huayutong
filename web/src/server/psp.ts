@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-// Payment-provider abstraction. Real PayMongo when PAYMONGO_SECRET_KEY is set,
+// Payment-provider abstraction. Real Stripe when STRIPE_SECRET_KEY is set,
 // otherwise a local mock so the trial→charge→dunning flow runs without keys.
 
 export type ChargeResult = {
@@ -49,71 +49,97 @@ function mock(): Psp {
   };
 }
 
-function paymongo(): Psp {
-  const sk = process.env.PAYMONGO_SECRET_KEY!;
-  const base = "https://api.paymongo.com/v1";
-  const authHeader = "Basic " + Buffer.from(sk + ":").toString("base64");
+// Flatten a nested object into Stripe's form-encoded bracket notation:
+//   { a: { b: 1 }, c: ["x"] }  ->  a[b]=1&c[0]=x
+function formEncode(params: Record<string, any>, prefix = ""): string {
+  const parts: string[] = [];
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null) continue;
+    const key = prefix ? `${prefix}[${k}]` : k;
+    if (Array.isArray(v)) {
+      v.forEach((item, i) => {
+        if (item && typeof item === "object") parts.push(formEncode(item, `${key}[${i}]`));
+        else parts.push(`${encodeURIComponent(`${key}[${i}]`)}=${encodeURIComponent(String(item))}`);
+      });
+    } else if (v && typeof v === "object") {
+      parts.push(formEncode(v, key));
+    } else {
+      parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(v))}`);
+    }
+  }
+  return parts.filter(Boolean).join("&");
+}
 
-  const call = async (path: string, method: string, attributes?: any) => {
+function stripe(): Psp {
+  const sk = process.env.STRIPE_SECRET_KEY!;
+  const base = "https://api.stripe.com/v1";
+
+  const call = async (path: string, method: string, params?: Record<string, any>) => {
     const r = await fetch(base + path, {
       method,
-      headers: { Authorization: authHeader, "Content-Type": "application/json" },
-      body: attributes ? JSON.stringify({ data: { attributes } }) : undefined,
+      headers: { Authorization: "Bearer " + sk, "Content-Type": "application/x-www-form-urlencoded" },
+      body: params ? formEncode(params) : undefined,
     });
     const j = await r.json();
-    if (!r.ok) throw new Error(`paymongo ${r.status}: ${JSON.stringify(j)}`);
-    return j.data;
+    if (!r.ok) {
+      const e: any = new Error(`stripe ${r.status}: ${JSON.stringify(j)}`);
+      e.body = j; // declines come back as 402 with error.payment_intent attached
+      throw e;
+    }
+    return j;
   };
 
   return {
-    name: "paymongo",
+    name: "stripe",
     async ensureCustomer(i) {
       if (i.pspCustomerId) return i.pspCustomerId;
       try {
-        const d = await call("/customers", "POST", {
-          email: i.email || undefined,
-          first_name: i.name || "Learner",
-          default_device: "web",
-        });
+        const d = await call("/customers", "POST", { email: i.email || undefined, name: i.name || "Learner" });
         return d.id;
       } catch {
-        return "cus_pm_" + i.userId.slice(0, 8);
+        return "cus_stripe_" + i.userId.slice(0, 8);
       }
     },
-    async createSetupSession() {
-      // The browser collects a PaymentMethod with the public key, then posts the
-      // payment_method id to /billing/trials. (PayMongo has no SetupIntent object.)
-      return { provider: "paymongo", clientKey: "", publicKey: process.env.PAYMONGO_PUBLIC_KEY || null };
+    async createSetupSession(i) {
+      // The browser confirms this SetupIntent with Stripe.js (publishable key + client_secret),
+      // which vaults the card and yields a payment_method id posted to /billing/trials.
+      const si = await call("/setup_intents", "POST", {
+        customer: i.pspCustomerId,
+        usage: "off_session",
+        payment_method_types: ["card"],
+      });
+      return { provider: "stripe", clientKey: si.client_secret, publicKey: process.env.STRIPE_PUBLISHABLE_KEY || null };
     },
     async charge(i) {
-      const pi = await call("/payment_intents", "POST", {
-        amount: i.amountMinor,
-        currency: i.currency,
-        payment_method_allowed: ["card"],
-        capture_type: "automatic",
-        description: i.description,
-        setup_future_usage: { session_type: "off_session" },
-      });
       try {
-        const c = await call(`/payment_intents/${pi.id}/attach`, "POST", { payment_method: i.paymentMethodId });
-        const st = c.attributes.status;
-        if (st === "succeeded") return { status: "succeeded", pspPaymentId: c.id };
-        if (st === "awaiting_next_action") return { status: "requires_action", pspPaymentId: c.id };
-        return { status: "failed", pspPaymentId: c.id, failureCode: st };
-      } catch {
-        return { status: "failed", pspPaymentId: pi.id, failureCode: "attach_failed" };
+        const pi = await call("/payment_intents", "POST", {
+          amount: i.amountMinor,
+          currency: i.currency.toLowerCase(),
+          customer: i.pspCustomerId,
+          payment_method: i.paymentMethodId,
+          off_session: true,
+          confirm: true,
+          description: i.description,
+        });
+        if (pi.status === "succeeded") return { status: "succeeded", pspPaymentId: pi.id };
+        if (pi.status === "requires_action" || pi.status === "requires_confirmation")
+          return { status: "requires_action", pspPaymentId: pi.id };
+        return { status: "failed", pspPaymentId: pi.id, failureCode: pi.last_payment_error?.code || pi.status };
+      } catch (e: any) {
+        const err = e?.body?.error;
+        return {
+          status: "failed",
+          pspPaymentId: err?.payment_intent?.id || rid("pi_err_"),
+          failureCode: err?.code || err?.decline_code || "charge_failed",
+        };
       }
     },
     async refund(i) {
-      const d = await call("/refunds", "POST", {
-        amount: i.amountMinor,
-        payment_id: i.pspPaymentId,
-        reason: "requested_by_customer",
-      });
+      const d = await call("/refunds", "POST", { payment_intent: i.pspPaymentId, amount: i.amountMinor });
       return { pspRefundId: d.id };
     },
     verifyWebhook(raw, sig) {
-      const secret = process.env.PAYMONGO_WEBHOOK_SECRET;
+      const secret = process.env.STRIPE_WEBHOOK_SECRET;
       if (!secret || !sig) {
         try { return JSON.parse(raw); } catch { return null; }
       }
@@ -121,7 +147,7 @@ function paymongo(): Psp {
         const parts = Object.fromEntries(sig.split(",").map((kv) => kv.split("="))) as Record<string, string>;
         const signed = `${parts.t}.${raw}`;
         const expected = crypto.createHmac("sha256", secret).update(signed).digest("hex");
-        const provided = parts.te || parts.li || "";
+        const provided = parts.v1 || "";
         if (provided.length === expected.length && crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected))) {
           return JSON.parse(raw);
         }
@@ -134,5 +160,5 @@ function paymongo(): Psp {
 }
 
 export function getPsp(): Psp {
-  return process.env.PAYMONGO_SECRET_KEY ? paymongo() : mock();
+  return process.env.STRIPE_SECRET_KEY ? stripe() : mock();
 }

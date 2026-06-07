@@ -7,6 +7,28 @@ import { useI18n } from "@/lib/i18n";
 import { Logo } from "@/components/Logo";
 import { api, ApiError } from "@/lib/api";
 
+declare global {
+  interface Window { Stripe?: (key: string) => any }
+}
+
+// Load Stripe.js on demand (no npm dep); resolves the global Stripe factory.
+function loadStripeJs(): Promise<(key: string) => any> {
+  return new Promise((resolve, reject) => {
+    if (window.Stripe) return resolve(window.Stripe);
+    const existing = document.querySelector<HTMLScriptElement>('script[src="https://js.stripe.com/v3"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve(window.Stripe!));
+      existing.addEventListener("error", () => reject(new Error("Stripe.js failed to load")));
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "https://js.stripe.com/v3";
+    s.onload = () => resolve(window.Stripe!);
+    s.onerror = () => reject(new Error("Stripe.js failed to load"));
+    document.head.appendChild(s);
+  });
+}
+
 function OptionGroup({
   options, defaultIndex = 0, cols = 2,
 }: { options: { em: string; b: ReactNode; s?: ReactNode }[]; defaultIndex?: number; cols?: 1 | 2 }) {
@@ -33,12 +55,39 @@ export default function Onboarding() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [monthlyPrice, setMonthlyPrice] = useState("$5.99/month");
+  const [provider, setProvider] = useState("mock");
+  const [stripeEl, setStripeEl] = useState<{ stripe: any; elements: any } | null>(null);
   useEffect(() => {
     api.getPlans().then((list) => {
       const m = list.find((p) => p.code === "premium_monthly");
       if (m) setMonthlyPrice(m.priceLabel);
     }).catch(() => {});
   }, []);
+
+  // On reaching the card step, open a setup session. With real Stripe keys this
+  // creates a SetupIntent and mounts a Payment Element; with the mock PSP it's a no-op stub.
+  useEffect(() => {
+    if (step !== 6 || stripeEl) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const session = await api.setupIntent();
+        if (cancelled) return;
+        setProvider(session.provider);
+        if (session.provider === "stripe" && session.publicKey && session.clientKey) {
+          const Stripe = await loadStripeJs();
+          if (cancelled) return;
+          const stripe = Stripe(session.publicKey);
+          const elements = stripe.elements({ clientSecret: session.clientKey });
+          elements.create("payment").mount("#stripe-payment-element");
+          setStripeEl({ stripe, elements });
+        }
+      } catch {
+        // fall back to the mock one-click flow
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [step, stripeEl]);
 
   const createAccount = async () => {
     if (!consent) { alert("Please accept the required Terms & Privacy consent to continue."); return; }
@@ -54,9 +103,19 @@ export default function Onboarding() {
 
   const startTrial = async () => {
     setBusy(true);
+    setError(null);
     try {
-      await api.setupIntent();                          // vault a card (mock PSP returns a stub)
-      await api.startTrial("premium_monthly", "pm_mock_card");
+      let paymentMethod = "pm_mock_card";
+      if (provider === "stripe" && stripeEl) {
+        // Confirm the SetupIntent — vaults the card with Stripe and returns a payment_method id.
+        const { error: pErr, setupIntent } = await stripeEl.stripe.confirmSetup({
+          elements: stripeEl.elements,
+          redirect: "if_required",
+        });
+        if (pErr) { setError(pErr.message || "Your card could not be saved."); setBusy(false); return; }
+        paymentMethod = setupIntent.payment_method;
+      }
+      await api.startTrial("premium_monthly", paymentMethod);
     } catch (e) {
       if (!(e instanceof ApiError && e.code === "already_subscribed")) {
         // non-fatal for the demo — proceed to the app
@@ -184,6 +243,10 @@ export default function Onboarding() {
             <span style={{ fontSize: 24 }}>💳</span>
             <div style={{ flex: 1 }}><b style={{ fontSize: 14 }}>Premium Monthly — {monthlyPrice}</b><br /><small style={{ color: "var(--ink-3)" }}>Card required · first charge in 30 days · cancel anytime</small></div>
           </div>
+          {provider === "stripe" && (
+            <div id="stripe-payment-element" style={{ margin: "0 auto 18px", maxWidth: 380, textAlign: "left" }} />
+          )}
+          {error && <p style={{ color: "var(--red)", fontSize: 13, marginBottom: 10, fontWeight: 600 }}>{error}</p>}
           <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={startTrial}>{busy ? "Starting…" : "Add card & start learning →"}</button>
           <p style={{ marginTop: 14, fontSize: 12, color: "var(--ink-3)" }}>🔒 Secured by Stripe — your card details never touch our servers</p>
         </div>

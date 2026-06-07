@@ -18,9 +18,9 @@ Then `/billing` shows the live subscription; cancel keeps access until the perio
 
 ### Charging the trial / running dunning
 
-PayMongo (unlike Stripe) doesn't run trials server-side, so **MandaMix owns the subscription
-lifecycle**. A runner endpoint charges trials at their end, renews active subs, and retries
-past-due ones — in production this is a cron calling it every ~15 min:
+MandaMix **owns the subscription lifecycle** rather than delegating trials to the PSP. A runner
+endpoint charges trials at their end, renews active subs, and retries past-due ones — in
+production this is a cron calling it every ~15 min:
 
 ```bash
 # charge everything due now
@@ -29,12 +29,13 @@ curl -X POST localhost:3000/api/v1/internal/run-billing \
 # force one subscription immediately (testing):  add  -d '{"subscriptionId":"<uuid>"}'
 ```
 
-### Going live with real PayMongo
+### Going live with real Stripe
 
-Set `PAYMONGO_SECRET_KEY`, `PAYMONGO_PUBLIC_KEY`, `PAYMONGO_WEBHOOK_SECRET` in `.env.local`.
-The provider auto-switches from mock → real PayMongo. Point a PayMongo webhook at
-`/api/v1/webhooks/paymongo`. The browser collects a card with the public key and posts the
-`payment_method` id to `/billing/trials`.
+Set `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` in `.env.local`.
+The provider auto-switches from mock → real Stripe. Point a Stripe webhook at
+`/api/v1/webhooks/stripe`. The browser confirms a SetupIntent with Stripe.js (publishable key +
+client secret), which vaults the card and posts the resulting `payment_method` id to
+`/billing/trials`.
 
 ## API (`/api/v1`)
 
@@ -44,7 +45,7 @@ The provider auto-switches from mock → real PayMongo. Point a PayMongo webhook
 | Billing | `GET /billing/plans · /billing/subscription`, `POST /billing/setup-intent · /billing/trials · /billing/subscription/cancel` |
 | Learning | `GET /courses · /me/progress · /lessons/{id} · /srs/queue`, `POST /lessons/{id}/complete · /srs/reviews`, `PUT /me/daily-goal` |
 | Admin | `POST /admin/login·logout`, `GET /admin/me·overview·customers·customers/{id}·content·audit`, `POST /admin/refunds·trials/extend·users·customers/{id}/password-reset`, `PUT /admin/customers/{id}/price` |
-| System | `POST /webhooks/paymongo`, `POST /internal/run-billing` |
+| System | `POST /webhooks/stripe`, `POST /internal/run-billing` |
 
 Auth = httpOnly **access (JWT, 15m)** + **refresh (opaque, 30d, hashed in `sessions`)** cookies.
 Entitlement (`free`/`premium`) is computed **server-side** from `subscriptions.status` on every
@@ -56,7 +57,7 @@ request — never trusted from the client.
 src/
   app/                   # screen routes + app/api/v1/* route handlers
   components/            # PreviewBar, AppShell, Logo
-  server/                # db, auth (scrypt+JWT), psp (PayMongo+mock), entitlement, billing
+  server/                # db, auth (scrypt+JWT), psp (Stripe+mock), entitlement, billing
   lib/                   # dict (4-lang i18n), i18n, api client, types, HSK levels
 ../db/schema.sql         # PostgreSQL schema   ../db/seed.sql  # plans/prices (USD)
 docker-compose.yml       # local Postgres
