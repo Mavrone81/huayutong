@@ -144,6 +144,7 @@ CREATE TABLE subscriptions (
     current_period_end timestamptz,
     cancel_at_period_end boolean NOT NULL DEFAULT false,
     canceled_at        timestamptz,
+    price_override_minor int,                             -- per-customer price (admin override)
     created_at         timestamptz NOT NULL DEFAULT now(),
     updated_at         timestamptz NOT NULL DEFAULT now()
 );
@@ -431,7 +432,8 @@ CREATE TABLE notification_prefs (
 CREATE TABLE admin_users (
     id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     email              citext UNIQUE NOT NULL,
-    role               text NOT NULL DEFAULT 'support',   -- support/billing/content/admin
+    role               text NOT NULL DEFAULT 'support',   -- ops_admin/finance_admin/content_admin/admin
+    password_hash      text,
     created_at         timestamptz NOT NULL DEFAULT now()
 );
 

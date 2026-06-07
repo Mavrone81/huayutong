@@ -43,6 +43,7 @@ The provider auto-switches from mock → real PayMongo. Point a PayMongo webhook
 | Auth | `POST /auth/register · /auth/login · /auth/logout · /auth/refresh`, `GET /me` |
 | Billing | `GET /billing/plans · /billing/subscription`, `POST /billing/setup-intent · /billing/trials · /billing/subscription/cancel` |
 | Learning | `GET /courses · /me/progress · /lessons/{id} · /srs/queue`, `POST /lessons/{id}/complete · /srs/reviews`, `PUT /me/daily-goal` |
+| Admin | `POST /admin/login·logout`, `GET /admin/me·overview·customers·customers/{id}·content·audit`, `POST /admin/refunds·trials/extend·users·customers/{id}/password-reset`, `PUT /admin/customers/{id}/price` |
 | System | `POST /webhooks/paymongo`, `POST /internal/run-billing` |
 
 Auth = httpOnly **access (JWT, 15m)** + **refresh (opaque, 30d, hashed in `sessions`)** cookies.
@@ -77,9 +78,19 @@ XP, advances the streak, seeds SRS cards, and updates HSK-readiness. Premium les
 entitlement (free users get a 402 → paywall). **Pricing on the landing & onboarding pages pulls
 from `/billing/plans`** (PHP).
 
+## Admin console (real, RBAC + audited)
+
+`/admin` has its own sign-in (`admin_users`, scrypt password) and a separate admin JWT cookie.
+Dev logins (password `admin12345`): **admin@mandamix.com** (super), **finance@mandamix.com**
+(refunds/price overrides), **ops@mandamix.com** (trials/users). Tabs read live data: **Overview**
+(MRR, active/trial counts, trial→paid, payment-success, refunds, signups-by-market, subscription
+states), **Customers & Billing** (search, detail, and actions), **Content & Localization** (gloss
+coverage + publish-gate blocked items), **Audit log**. Actions — extend trial, issue refund,
+price override, create user, password reset — are **RBAC-gated** (wrong role → 403) and every
+mutation writes to `audit_logs`.
+
 ## Still mock
 
-The admin console reads mock data, and a couple of dashboard widgets (weekly-activity chart,
-leaderboard) are cosmetic. Lesson exercises are generated as multiple-choice from the item glosses
-(the prototype's tone/sentence/match drills are a future enhancement). Mock exams / study plans
-(HSK-prep screens) are still static.
+A couple of dashboard widgets (weekly-activity chart, leaderboard) are cosmetic. Lesson exercises
+are multiple-choice generated from the item glosses (the prototype's tone/sentence/match drills are
+a future enhancement). Mock exams / study plans (HSK-prep screens) are still static.

@@ -1,26 +1,82 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 
-type AuditRow = { time: string; actor: string; action: string; chip: string; target: string; detail: string };
+const peso = (m: number | null) => (m == null ? "—" : "₱" + (m / 100).toLocaleString("en-PH", { minimumFractionDigits: 2 }));
+const MKT: Record<string, string> = { th: "🇹🇭 TH", vi: "🇻🇳 VN", ms: "🇲🇾 MY", en: "🌐 EN" };
+const chipFor = (s: string) => (s === "active" ? "teal" : s === "trialing" ? "gold" : s === "past_due" ? "red" : "navy");
+
+async function adm(path: string, opts: RequestInit = {}) {
+  const r = await fetch("/api/v1/admin" + path, { credentials: "include", headers: { "Content-Type": "application/json" }, ...opts });
+  const j = await r.json().catch(() => null);
+  if (!r.ok) throw new Error(j?.error?.message || "Request failed");
+  return j;
+}
 
 export default function Admin() {
+  const [role, setRole] = useState<string | null | "loading">("loading");
+  const [email, setEmail] = useState("admin@mandamix.com");
+  const [password, setPassword] = useState("admin12345");
+  const [loginErr, setLoginErr] = useState<string | null>(null);
+
+  useEffect(() => { adm("/me").then((d) => setRole(d.role)).catch(() => setRole(null)); }, []);
+
+  const login = async () => {
+    setLoginErr(null);
+    try { const d = await adm("/login", { method: "POST", body: JSON.stringify({ email, password }) }); setRole(d.admin.role); }
+    catch (e) { setLoginErr(e instanceof Error ? e.message : "Login failed"); }
+  };
+
+  if (role === "loading") return <Centered>Loading…</Centered>;
+  if (role === null)
+    return (
+      <Centered>
+        <Logo style={{ justifyContent: "center", marginBottom: 24 }} />
+        <h2 style={{ color: "var(--navy)", marginBottom: 4 }}>Admin sign-in</h2>
+        <p style={{ color: "var(--ink-2)", fontSize: 13.5, marginBottom: 20 }}>Restricted — staff only. RBAC enforced server-side.</p>
+        <label className="field"><small>Email</small><input value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+        <label className="field"><small>Password</small><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && login()} /></label>
+        {loginErr && <p style={{ color: "var(--red)", fontSize: 13, fontWeight: 600 }}>{loginErr}</p>}
+        <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 8 }} onClick={login}>Sign in →</button>
+        <p style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 16 }}>Dev logins (pw <b>admin12345</b>): admin@ (super) · finance@ (refunds/price) · ops@ (trials/users)</p>
+      </Centered>
+    );
+
+  return <Console role={role} onLogout={() => { adm("/logout", { method: "POST" }).finally(() => setRole(null)); }} />;
+}
+
+function Console({ role, onLogout }: { role: string; onLogout: () => void }) {
   const [tab, setTab] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
-  const [audit, setAudit] = useState<AuditRow[]>([
-    { time: "06 Jun 11:42", actor: "ops_admin", action: "trial.extend", chip: "gold", target: "cus_2Kd91", detail: "+7 days · reason: onboarding bug T-1842" },
-    { time: "06 Jun 10:18", actor: "system/webhook", action: "invoice.payment_failed", chip: "red", target: "cus_7Pq33", detail: "card_declined · dunning retry scheduled day 1" },
-    { time: "06 Jun 09:55", actor: "finance_admin", action: "refund.issue", chip: "navy", target: "cus_5Rt18", detail: "$5.99 full · consumer-law window (TH)" },
-    { time: "05 Jun 22:03", actor: "system/webhook", action: "invoice.payment_succeeded", chip: "teal", target: "cus_9Zw44", detail: "$44.99 annual · receipt sent (vi)" },
-    { time: "05 Jun 18:31", actor: "content_admin", action: "content.publish", chip: "teal", target: "HSK2 · Unit 旅游", detail: "blocked → 4 items missing glosses" },
-  ]);
+  const [ov, setOv] = useState<any>(null);
+  const [custs, setCusts] = useState<any[]>([]);
+  const [q, setQ] = useState("");
+  const [detail, setDetail] = useState<any>(null);
+  const [content, setContent] = useState<any>(null);
+  const [audit, setAudit] = useState<any[]>([]);
 
-  const act = (msg: string) => {
-    setAudit((a) => [{ time: "06 Jun now", actor: "ops_admin", action: "admin.action", chip: "gold", target: "cus_8Hf2k", detail: msg }, ...a]);
-    setToast(msg);
-    setTimeout(() => setToast(null), 3500);
+  const flash = (m: string) => { setToast(m); setTimeout(() => setToast(null), 4000); };
+  const loadCustomers = useCallback(() => adm(`/customers?q=${encodeURIComponent(q)}`).then((d) => setCusts(d.customers)), [q]);
+
+  useEffect(() => {
+    if (tab === 0) adm("/overview").then(setOv).catch(() => {});
+    if (tab === 1) loadCustomers().catch(() => {});
+    if (tab === 2) adm("/content").then(setContent).catch(() => {});
+    if (tab === 3) adm("/audit").then((d) => setAudit(d.entries)).catch(() => {});
+  }, [tab, loadCustomers]);
+
+  const refreshAfterAction = async () => {
+    await loadCustomers().catch(() => {});
+    if (detail) await adm(`/customers/${detail.id}`).then(setDetail).catch(() => {});
   };
+
+  const act = async (fn: () => Promise<any>, label: string) => {
+    try { await fn(); flash(`✓ ${label} — written to audit log`); await refreshAfterAction(); }
+    catch (e) { flash(`✗ ${e instanceof Error ? e.message : "failed"}`); }
+  };
+
+  const openCustomer = (id: string) => adm(`/customers/${id}`).then(setDetail).catch(() => {});
 
   return (
     <div className="adm">
@@ -34,41 +90,46 @@ export default function Admin() {
         <div className="sec">Compliance</div>
         <button className={tab === 3 ? "on" : ""} onClick={() => setTab(3)}>📜 Audit log</button>
         <div style={{ marginTop: 30, padding: 12, background: "rgba(255,255,255,.06)", borderRadius: 12, fontSize: 11.5, color: "#9FB4C8" }}>
-          🔐 RBAC: you are signed in as <b style={{ color: "#fff" }}>ops_admin</b>. Refunds and trial extensions are audited.
+          🔐 Signed in as <b style={{ color: "#fff" }}>{role}</b>. Refunds &amp; price overrides need finance_admin.
+          <button onClick={onLogout} style={{ color: "#C7D5E3", textDecoration: "underline", marginTop: 8, display: "block" }}>Sign out</button>
         </div>
       </aside>
 
       <main className="adm-main">
-        {tab === 0 && (
+        {toast && <div className="chip teal" style={{ marginBottom: 14 }}>{toast}</div>}
+
+        {tab === 0 && ov && (
           <>
             <h1>Operations overview</h1>
-            <p className="sub">Saturday 6 June 2026 · all times UTC+7 · data refreshed 5 min ago</p>
+            <p className="sub">Live from PostgreSQL · refresh by reopening the tab</p>
             <div className="kpis">
-              <Kpi s="MRR" v="$18,420" d="▲ 12.4% vs May" up />
-              <Kpi s="Active subscribers" v="3,075" d="▲ 286 this month" up />
-              <Kpi s="In trial (1-month)" v="1,512" d="▲ 9.1% — first charge: 6 Jul" up />
-              <Kpi s="Trial → paid" v="52.3%" d="▲ target ≥ 50%" up />
-              <Kpi s="Past due (dunning)" v="94" d="▼ retry day 3 of 7" />
-              <Kpi s="Involuntary churn" v="1.2%/mo" d="within ≤1.5% target" up />
-              <Kpi s="Payment success" v="93.8%" d="target ≥ 90%" up />
-              <Kpi s="Refunds (30d)" v="$214" d="11 issued · all audited" />
+              <Kpi s="MRR" v={peso(ov.mrrMinor)} d="active subscriptions" up />
+              <Kpi s="Active subscribers" v={String(ov.activeSubs)} d="status = active" up />
+              <Kpi s="In trial" v={String(ov.inTrial)} d="status = trialing" up />
+              <Kpi s="Trial → paid" v={`${ov.conversionPct}%`} d="converted / started" up={ov.conversionPct >= 50} />
+              <Kpi s="Past due (dunning)" v={String(ov.pastDue)} d="needs recovery" />
+              <Kpi s="Payment success" v={`${ov.paymentSuccessPct}%`} d="succeeded / attempts" up={ov.paymentSuccessPct >= 90} />
+              <Kpi s="Refunds (30d)" v={peso(ov.refundsMinor)} d={`${ov.refundsCount} issued · audited`} />
+              <Kpi s="Markets" v={String(ov.markets.length)} d="active languages" up />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18 }}>
               <div className="card panel">
-                <h3>Signups by market — this week</h3>
+                <h3>Signups by market (by UI language)</h3>
                 <div className="wk" style={{ height: 110 }}>
-                  {[["TH", 62], ["VN", 88], ["MY", 46], ["SG", 30], ["Other", 18]].map((m, i) => (
-                    <div key={i} className="hit"><i style={{ height: `${m[1]}%` }} />{m[0]}</div>
-                  ))}
+                  {ov.markets.map((m: any, i: number) => {
+                    const max = Math.max(...ov.markets.map((x: any) => x.n), 1);
+                    return <div key={i} className="hit"><i style={{ height: `${Math.round((m.n / max) * 100)}%` }} />{(MKT[m.lang] || m.lang).split(" ")[1] || m.lang}</div>;
+                  })}
                 </div>
-                <small style={{ color: "var(--ink-3)", display: "block", marginTop: 10 }}>2,841 signups · Vietnam leading after the HSK 3.0 launch campaign</small>
+                <small style={{ color: "var(--ink-3)", display: "block", marginTop: 10 }}>{ov.markets.reduce((a: number, m: any) => a + m.n, 0)} total signups</small>
               </div>
               <div className="card panel">
                 <h3>Subscription states</h3>
-                <Cov b="Trialing" w="31%" v="1,512" bg="linear-gradient(90deg,var(--gold),#F2B95C)" />
-                <Cov b="Active" w="63%" v="3,075" />
-                <Cov b="Past due" w="2%" v="94" bg="var(--red)" />
-                <Cov b="Canceled (mo.)" w="4%" v="183" bg="#B6C3D2" />
+                {ov.states.length === 0 && <small style={{ color: "var(--ink-3)" }}>No subscriptions yet.</small>}
+                {ov.states.map((s: any, i: number) => {
+                  const tot = ov.states.reduce((a: number, x: any) => a + x.n, 0) || 1;
+                  return <div key={i} className="cov"><b>{s.status}</b><div className="bar"><i style={{ width: `${(s.n / tot) * 100}%`, background: s.status === "past_due" ? "var(--red)" : s.status === "trialing" ? "linear-gradient(90deg,var(--gold),#F2B95C)" : undefined }} /></div><span>{s.n}</span></div>;
+                })}
               </div>
             </div>
           </>
@@ -77,87 +138,97 @@ export default function Admin() {
         {tab === 1 && (
           <>
             <h1>Customers &amp; billing</h1>
-            <p className="sub">GET /admin/customers · actions call POST /admin/refunds and /admin/trials/extend (idempotent, audited)</p>
+            <p className="sub">GET /admin/customers · actions are RBAC-gated and audited</p>
             <div className="searchbar">
-              <input placeholder="Search by email, name or customer ID…" />
-              <button className="btn btn-navy btn-sm">Search</button>
-              <button className="btn btn-ghost btn-sm">Filter: Past due ▾</button>
-              <button className="btn btn-primary btn-sm" onClick={() => act("User created · set-password invite sent")}>➕ Create user</button>
+              <input placeholder="Search email or name…" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && loadCustomers()} />
+              <button className="btn btn-navy btn-sm" onClick={() => loadCustomers()}>Search</button>
+              <button className="btn btn-primary btn-sm" onClick={() => {
+                const name = prompt("Full name"); if (name === null) return;
+                const em = prompt("Email"); if (!em) return;
+                act(() => adm("/users", { method: "POST", body: JSON.stringify({ name, email: em }) }), "User created · invite sent");
+              }}>➕ Create user</button>
             </div>
             <div className="card" style={{ padding: "6px 16px", marginBottom: 18, overflowX: "auto" }}>
               <table className="atable">
                 <tbody>
-                  <tr><th>Customer</th><th>Market</th><th>Plan</th><th>Status</th><th>Next / first charge</th><th>LTV</th><th /></tr>
-                  <tr><td><b>Ploy Suwannarat</b><br /><small style={{ color: "var(--ink-3)" }}>ploy@example.com</small></td><td>🇹🇭 TH · th</td><td>Monthly $5.99</td><td><span className="chip gold">trialing</span></td><td>6 Jul 2026 · $5.99</td><td>$0</td><td><button className="btn btn-ghost btn-sm">Open</button></td></tr>
-                  <tr><td><b>Minh Nguyen</b><br /><small style={{ color: "var(--ink-3)" }}>minh.n@example.vn</small></td><td>🇻🇳 VN · vi</td><td>Annual $44.99</td><td><span className="chip teal">active</span></td><td>14 Feb 2027</td><td>$89.98</td><td><button className="btn btn-ghost btn-sm">Open</button></td></tr>
-                  <tr><td><b>Aisyah Rahman</b><br /><small style={{ color: "var(--ink-3)" }}>aisyah@example.my</small></td><td>🇲🇾 MY · ms</td><td>Monthly $5.99</td><td><span className="chip red">past_due</span></td><td>retry #2 tomorrow</td><td>$35.94</td><td><button className="btn btn-ghost btn-sm">Open</button></td></tr>
-                  <tr><td><b>Somchai K.</b><br /><small style={{ color: "var(--ink-3)" }}>somchai@example.com</small></td><td>🇹🇭 TH · th</td><td>Monthly $5.99</td><td><span className="chip navy">canceled</span></td><td>access until 28 Jun</td><td>$17.97</td><td><button className="btn btn-ghost btn-sm">Open</button></td></tr>
+                  <tr><th>Customer</th><th>Market</th><th>Plan</th><th>Status</th><th>Trial / renews</th><th>LTV</th><th /></tr>
+                  {custs.length === 0 && <tr><td colSpan={7} style={{ color: "var(--ink-3)" }}>No customers match.</td></tr>}
+                  {custs.map((c) => (
+                    <tr key={c.id}>
+                      <td><b>{c.display_name || "—"}</b><br /><small style={{ color: "var(--ink-3)" }}>{c.email}</small></td>
+                      <td>{MKT[c.ui_language] || c.ui_language}</td>
+                      <td>{c.plan_code ? `${c.plan_code === "premium_annual" ? "Annual" : "Monthly"} ${peso(c.amount_minor)}` : "—"}{c.price_override_minor != null && <span className="chip teal" style={{ fontSize: 10, marginLeft: 6 }}>override</span>}</td>
+                      <td>{c.status ? <span className={"chip " + chipFor(c.status)}>{c.status}</span> : "—"}</td>
+                      <td>{c.status === "trialing" ? dateLabel(c.trial_ends_at) : dateLabel(c.current_period_end)}</td>
+                      <td>{peso(c.ltv)}</td>
+                      <td><button className="btn btn-ghost btn-sm" onClick={() => openCustomer(c.id)}>Open</button></td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-            <div className="card panel">
-              <h3><span>Ploy Suwannarat — cus_8Hf2k</span><span className="chip gold">trialing</span></h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 30px" }}>
-                <div>
-                  <Cov b="Subscription" plain="sub_91xA2 · Premium Monthly" />
-                  <Cov b="Trial ends" plain="6 Jul 2026 09:00 (30 days)" />
-                  <Cov b="First charge" plain="$5.99 · Visa •••• 4242" />
-                  <Cov b="Reminders" plain="T-3d ✓ · T-24h ✓ scheduled" />
+
+            {detail && (
+              <div className="card panel">
+                <h3><span>{detail.display_name || detail.email} — {detail.psp_customer_id || "no PSP id"}</span>{detail.status && <span className={"chip " + chipFor(detail.status)}>{detail.status}</span>}</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 30px" }}>
+                  <div>
+                    <Cov b="Plan" v={detail.plan_code || "—"} />
+                    <Cov b="Trial ends" v={dateLabel(detail.trial_ends_at)} />
+                    <Cov b="Price" v={`${peso(detail.amount_minor)}${detail.price_override_minor != null ? " (override)" : ""}`} />
+                    <Cov b="Payment method" v={detail.brand ? `${detail.brand} •••• ${detail.last4}` : "—"} />
+                  </div>
+                  <div>
+                    <Cov b="UI language" v={`${MKT[detail.ui_language] || detail.ui_language}`} />
+                    <Cov b="Lessons completed" v={String(detail.lessons_done)} />
+                    <Cov b="Cancel at period end" v={detail.cancel_at_period_end ? "yes" : "no"} />
+                    <Cov b="Email" v={detail.email} />
+                  </div>
                 </div>
-                <div>
-                  <Cov b="UI language" plain="ไทย (th)" />
-                  <Cov b="Course" plain="HSK 1 · 78% ready · 12-day streak" />
-                  <Cov b="Devices" plain="iPhone (push ✓) · Web" />
-                  <Cov b="Webhooks" plain="setup_intent.succeeded ✓" />
+                <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
+                  <button className="btn btn-navy btn-sm" onClick={() => act(() => adm("/trials/extend", { method: "POST", body: JSON.stringify({ customerId: detail.id, days: 7 }) }), "Trial extended +7 days")}>⏳ Extend trial +7d</button>
+                  <button className="btn btn-navy btn-sm" onClick={() => {
+                    const amt = prompt("New price (PHP / month)", "4.99"); if (!amt) return;
+                    const reason = prompt("Reason (required, audited)"); if (!reason) return;
+                    act(() => adm(`/customers/${detail.id}/price`, { method: "PUT", body: JSON.stringify({ amountMinor: Math.round(parseFloat(amt) * 100), reason }) }), `Price override ${amt}`);
+                  }}>💲 Change price…</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => act(() => adm(`/customers/${detail.id}/password-reset`, { method: "POST" }), "Password reset link sent")}>🔑 Reset password</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => { if (confirm("Refund the latest charge?")) act(() => adm("/refunds", { method: "POST", body: JSON.stringify({ customerId: detail.id }) }), "Refund issued"); }}>↩ Issue refund</button>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap", alignItems: "center" }}>
-                <button className="btn btn-navy btn-sm" onClick={() => act("Trial extended +7d for cus_8Hf2k")}>⏳ Extend trial +7 days</button>
-                <button className="btn btn-navy btn-sm" onClick={() => act("Price override $4.99/mo for cus_8Hf2k")}>💲 Change price…</button>
-                <button className="btn btn-ghost btn-sm" onClick={() => act("Password reset link sent (expires 1h)")}>🔑 Reset password</button>
-                <button className="btn btn-ghost btn-sm" onClick={() => act("Refund issued for cus_8Hf2k")}>↩ Issue refund…</button>
-                <button className="btn btn-ghost btn-sm">✉ Resend receipt</button>
-                <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)", borderColor: "var(--red-soft)" }}>Cancel subscription</button>
-                {toast && <span className="chip teal">✓ {toast} — written to audit log</span>}
-              </div>
-            </div>
+            )}
           </>
         )}
 
-        {tab === 2 && (
+        {tab === 2 && content && (
           <>
             <h1>Content &amp; localization</h1>
-            <p className="sub">Publish gate: an item cannot ship unless all four glosses (EN · TH · VI · MS) exist — GET /admin/content/items?missing_gloss=…</p>
-            <div className="card panel" style={{ marginBottom: 18, borderLeft: "4px solid var(--red)" }}>
-              <b style={{ color: "var(--red)" }}>⛔ 12 items are blocked from publishing</b>
-              <p style={{ color: "var(--ink-2)", fontSize: 13.5, marginTop: 6 }}>HSK 2 · Unit “Travel basics” is 96% localized. The items below are missing at least one gloss and will not appear to learners until complete.</p>
+            <p className="sub">Publish gate: an item ships only when all 4 glosses (EN · TH · VI · MS) exist</p>
+            <div className="card panel" style={{ marginBottom: 18, borderLeft: `4px solid ${content.blocked.length ? "var(--red)" : "var(--teal)"}` }}>
+              <b style={{ color: content.blocked.length ? "var(--red)" : "var(--teal)" }}>
+                {content.blocked.length ? `⛔ ${content.blocked.length} items blocked from publishing` : `✓ All ${content.totalItems} published items are fully localized`}
+              </b>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 18 }}>
-              <div className="card" style={{ padding: "6px 16px", overflowX: "auto" }}>
-                <table className="atable">
-                  <tbody>
-                    <tr><th>Item</th><th>Pinyin</th><th>HSK</th><th>EN</th><th>TH</th><th>VI</th><th>MS</th><th /></tr>
-                    <GlossRow hz="护照" py="hùzhào" miss={["VI"]} />
-                    <GlossRow hz="行李箱" py="xínglixiāng" miss={["TH"]} />
-                    <GlossRow hz="登机牌" py="dēngjīpái" miss={["TH", "VI"]} />
-                    <GlossRow hz="签证" py="qiānzhèng" miss={["MS"]} />
-                  </tbody>
-                </table>
+              <div className="card panel">
+                <h3>{content.blocked.length ? "Blocked items (missing a gloss)" : "Recently published items"}</h3>
+                {content.blocked.length === 0 && <small style={{ color: "var(--ink-3)" }}>Nothing blocked — every item has all four language glosses.</small>}
+                {content.blocked.map((b: any, i: number) => (
+                  <div key={i} className="srs-item"><span className="hanzi" style={{ fontWeight: 700, width: 60 }}>{b.hanzi}</span><span className="g">{b.pinyin}</span><span className="chip red">missing {b.missing}</span></div>
+                ))}
               </div>
               <div style={{ display: "grid", gap: 18 }}>
                 <div className="card panel">
                   <h3>Gloss coverage by language</h3>
-                  <Cov b="English" w="100%" v="100%" />
-                  <Cov b="ไทย" w="99%" v="98.9%" />
-                  <Cov b="Tiếng Việt" w="98%" v="98.2%" />
-                  <Cov b="B. Melayu" w="99%" v="99.1%" />
+                  {content.coverage.map((c: any, i: number) => (
+                    <div key={i} className="cov"><b>{c.name}</b><div className="bar"><i style={{ width: `${c.pct}%` }} /></div><span>{c.pct}%</span></div>
+                  ))}
                 </div>
                 <div className="card panel">
                   <h3>Course build status</h3>
-                  <Cov b="HSK 1" w="100%" v="live" />
-                  <Cov b="HSK 2" w="96%" v="96%" bg="linear-gradient(90deg,var(--gold),#F2B95C)" />
-                  <Cov b="HSK 3" w="61%" v="61%" bg="linear-gradient(90deg,var(--gold),#F2B95C)" />
-                  <Cov b="HSK 4–6" w="18%" v="18%" bg="#B6C3D2" />
+                  {content.courses.map((c: any, i: number) => (
+                    <div key={i} className="cov"><b>HSK {c.level}</b><div className="bar"><i style={{ width: `${c.items ? 100 : 0}%`, background: c.items ? undefined : "#B6C3D2" }} /></div><span>{c.items ? `${c.lessons}L` : "—"}</span></div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -167,13 +238,20 @@ export default function Admin() {
         {tab === 3 && (
           <>
             <h1>Audit log</h1>
-            <p className="sub">Every billing and entitlement mutation is recorded — admin_users → audit_logs (immutable, exportable)</p>
+            <p className="sub">Every admin &amp; billing mutation — audit_logs (immutable)</p>
             <div className="card" style={{ padding: "6px 16px", overflowX: "auto" }}>
               <table className="atable">
                 <tbody>
-                  <tr><th>Time (UTC+7)</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr>
-                  {audit.map((r, i) => (
-                    <tr key={i}><td>{r.time}</td><td>{r.actor}</td><td><span className={"chip " + r.chip}>{r.action}</span></td><td>{r.target}</td><td>{r.detail}</td></tr>
+                  <tr><th>Time</th><th>Actor</th><th>Action</th><th>Entity</th><th>Detail</th></tr>
+                  {audit.length === 0 && <tr><td colSpan={5} style={{ color: "var(--ink-3)" }}>No audit entries yet — perform an action.</td></tr>}
+                  {audit.map((a, i) => (
+                    <tr key={i}>
+                      <td>{new Date(a.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
+                      <td>{a.actor}{a.role ? ` · ${a.role}` : ""}</td>
+                      <td><span className={"chip " + (a.action?.includes("refund") ? "navy" : a.action?.includes("fail") ? "red" : "gold")}>{a.action}</span></td>
+                      <td>{a.entity_type}</td>
+                      <td style={{ color: "var(--ink-2)" }}>{a.metadata ? JSON.stringify(a.metadata) : ""}</td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
@@ -185,22 +263,15 @@ export default function Admin() {
   );
 }
 
+function dateLabel(d: string | null) {
+  return d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
+}
 function Kpi({ s, v, d, up }: { s: string; v: string; d: string; up?: boolean }) {
-  return <div className="card kpi"><small>{s}</small><div className="v">{v}</div><div className={"d " + (up ? "up" : "dn")}>{d}</div></div>;
+  return <div className="card kpi"><small>{s}</small><div className="v">{v}</div><div className={"d " + (up ? "up" : "")}>{d}</div></div>;
 }
-function Cov({ b, w, v, bg, plain }: { b: string; w?: string; v?: string; bg?: string; plain?: string }) {
-  if (plain) return <div className="cov"><b>{b}</b><span style={{ width: "auto", fontWeight: 600 }}>{plain}</span></div>;
-  return <div className="cov"><b>{b}</b><div className="bar"><i style={{ width: w, background: bg }} /></div><span>{v}</span></div>;
+function Cov({ b, v }: { b: string; v: string }) {
+  return <div className="cov"><b>{b}</b><span style={{ width: "auto", fontWeight: 600 }}>{v}</span></div>;
 }
-function GlossRow({ hz, py, miss }: { hz: string; py: string; miss: string[] }) {
-  const cell = (lang: string) => miss.includes(lang)
-    ? <td style={{ color: "var(--red)", fontWeight: 800 }}>—</td>
-    : <td>✓</td>;
-  return (
-    <tr>
-      <td className="hanzi" style={{ fontSize: 18, fontWeight: 700 }}>{hz}</td><td>{py}</td><td>2</td>
-      {cell("EN")}{cell("TH")}{cell("VI")}{cell("MS")}
-      <td><button className="btn btn-ghost btn-sm">Add {miss.length > 1 ? miss.length : miss[0]}</button></td>
-    </tr>
-  );
+function Centered({ children }: { children: React.ReactNode }) {
+  return <div className="onb" style={{ maxWidth: 440 }}><div className="card onb-card">{children}</div></div>;
 }

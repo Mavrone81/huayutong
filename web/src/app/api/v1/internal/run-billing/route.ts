@@ -16,7 +16,8 @@ export async function POST(req: Request) {
   const forced = b?.subscriptionId ?? null;
 
   const due = await query<{ id: string; status: string; customer_id: string; currency: string; interval: "month" | "year" | null; amount_minor: number | null; cancel_at_period_end: boolean }>(
-    `SELECT s.id, s.status, s.customer_id, s.currency, p.interval, pr.amount_minor, s.cancel_at_period_end
+    `SELECT s.id, s.status, s.customer_id, s.currency, p.interval,
+            COALESCE(s.price_override_minor, pr.amount_minor) AS amount_minor, s.cancel_at_period_end
        FROM subscriptions s
        JOIN plans p ON p.id = s.plan_id
        LEFT JOIN prices pr ON pr.plan_id = p.id AND pr.currency = s.currency
