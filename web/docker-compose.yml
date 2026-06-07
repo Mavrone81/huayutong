@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: mandamix
       POSTGRES_DB: mandamix
     ports:
-      - "5432:5432"
+      - "20002:5432"
     volumes:
       - mmdata:/var/lib/postgresql/data
       - ../db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
