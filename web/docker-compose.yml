@@ -1,0 +1,23 @@
+# Local Postgres for MandaMix dev. Schema + seed auto-load on first boot.
+# Usage:  docker compose up -d   (from the web/ folder)
+services:
+  db:
+    image: postgres:16
+    container_name: mandamix-db
+    environment:
+      POSTGRES_USER: mandamix
+      POSTGRES_PASSWORD: mandamix
+      POSTGRES_DB: mandamix
+    ports:
+      - "5432:5432"
+    volumes:
+      - mmdata:/var/lib/postgresql/data
+      - ../db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mandamix"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  mmdata:

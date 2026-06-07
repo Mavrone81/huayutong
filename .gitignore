@@ -1,0 +1,16 @@
+# Secrets / env (real env files only — *.example templates are committed)
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Build / temp artifacts
+.next/
+*.tmp
+pg-*.jpg
+
+# OS
+.DS_Store

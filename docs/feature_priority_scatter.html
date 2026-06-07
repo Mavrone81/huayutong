@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MandaMix — Feature Priority Map (scatter)</title>
+<style>
+  :root{
+    --navy:#16324F; --navy2:#1F4E79; --red:#D7402B; --gold:#E9A23B;
+    --teal:#2A9D8F; --purple:#7B5EA7; --slate:#52647A; --grey:#9AA7B6;
+    --ink:#1C2B3A; --ink2:#52647A; --line:#E3E9F0; --bg:#F6F8FB;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink);padding:28px}
+  .wrap{max-width:1180px;margin:0 auto}
+  h1{font-size:24px;color:var(--navy);letter-spacing:-.01em}
+  .sub{color:var(--ink2);font-size:14px;margin:6px 0 18px;max-width:60em}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px rgba(22,50,79,.06);padding:18px}
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin:16px 0 4px;align-items:center}
+  .lg{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--ink2)}
+  .dot{width:13px;height:13px;border-radius:50%}
+  .sizes{display:flex;gap:16px;align-items:center;margin-left:auto}
+  .sz{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);font-weight:600}
+  .sz i{display:inline-block;border-radius:50%;background:var(--slate);opacity:.55}
+  svg text{font-family:'Inter',system-ui,Arial,sans-serif}
+  .pt{cursor:default;transition:opacity .15s}
+  .lbl{font-size:11px;fill:var(--ink);font-weight:600;paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}
+  .quad{font-size:13px;font-weight:800;letter-spacing:.02em;opacity:.5}
+  .axis{font-size:12px;fill:var(--ink2);font-weight:700}
+  .tick{font-size:10.5px;fill:var(--grey)}
+  .foot{font-size:12px;color:var(--grey);margin-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>MandaMix — Feature Priority Map</h1>
+  <p class="sub">Every major feature plotted by <b>build effort</b> (x) vs <b>user / business value</b> (y).
+  Colour = product area · dot size = PRD priority (P0 large → P2 small). Quadrants suggest sequencing.
+  Companion to <code>docs/06_design_overview.md</code>.</p>
+
+  <div class="card">
+    <div class="legend" id="legend"></div>
+    <svg id="chart" viewBox="0 0 1120 700" width="100%" role="img" aria-label="Feature priority scatter plot"></svg>
+    <p class="foot">Effort/value are relative planning estimates derived from the PRD, schema, and design prototype — directional, not committed.</p>
+  </div>
+</div>
+
+<script>
+// ---- data: [label, effort(0-10), value(0-10), area, priority] ----
+const AREAS = {
+  Core:       {c:'#2A9D8F', name:'Core learning'},
+  HSK:        {c:'#1F4E79', name:'HSK prep'},
+  Billing:    {c:'#D7402B', name:'Billing & trial'},
+  Engage:     {c:'#E9A23B', name:'Engagement'},
+  Platform:   {c:'#52647A', name:'Platform / data'},
+  AI:         {c:'#7B5EA7', name:'AI / speech'},
+  Compliance: {c:'#8A98AA', name:'Compliance'},
+};
+const PRIO = { P0:11, P1:8, P2:5.5 };
+
+const DATA = [
+  ['Localized UI (4 lang)',      6.0, 9.5, 'Core', 'P0'],
+  ['Course path HSK 1–3',        6.5, 9.0, 'Core', 'P0'],
+  ['Lesson types',               5.0, 8.5, 'Core', 'P0'],
+  ['Pinyin & tone audio',        4.0, 8.0, 'Core', 'P0'],
+  ['Characters / stroke order',  6.0, 7.0, 'Core', 'P0'],
+  ['SRS engine',                 6.5, 9.2, 'Core', 'P0'],
+
+  ['HSK level mapping',          3.0, 8.0, 'HSK', 'P0'],
+  ['Mock exams',                 6.0, 8.0, 'HSK', 'P1'],
+  ['Readiness score',            5.5, 7.2, 'HSK', 'P1'],
+  ['Study plans',                5.0, 7.0, 'HSK', 'P1'],
+
+  ['1-month trial + card',       5.0, 9.4, 'Billing', 'P0'],
+  ['Stripe recurring billing',   6.2, 9.8, 'Billing', 'P0'],
+  ['Dunning / retries',          5.0, 7.0, 'Billing', 'P1'],
+  ['Local payment methods',      6.5, 6.0, 'Billing', 'P1'],
+
+  ['Streaks & daily goal',       3.0, 7.3, 'Engage', 'P0'],
+  ['XP & levels',                2.5, 6.0, 'Engage', 'P0'],
+  ['Push reminders',             4.0, 7.0, 'Engage', 'P0'],
+  ['Leaderboards',               4.0, 4.0, 'Engage', 'P2'],
+  ['Offline mode',               7.5, 6.0, 'Engage', 'P1'],
+
+  ['Auth & sync (OAuth)',        4.5, 8.2, 'Platform', 'P0'],
+  ['Content CMS + 4-gloss gate', 7.6, 8.6, 'Platform', 'P0'],
+  ['Analytics instrumentation',  4.0, 7.0, 'Platform', 'P0'],
+  ['Admin / billing console',    5.5, 6.0, 'Platform', 'P1'],
+
+  ['Speech / pronunciation',     8.0, 7.0, 'AI', 'P1'],
+  ['AI speaking partner',        9.0, 8.2, 'AI', 'P1'],
+
+  ['Digital-services tax',       5.0, 7.6, 'Compliance', 'P0'],
+  ['PDPA / PDPL consent',        4.3, 7.5, 'Compliance', 'P0'],
+];
+
+// label offsets to reduce overlap: [dx, dy] in px, default to the right
+const OFFS = {
+  'Pinyin & tone audio':[10,-2],'Lesson types':[10,-2],'SRS engine':[10,4],
+  'Course path HSK 1–3':[10,12],'Localized UI (4 lang)':[-12,-8],
+  'HSK level mapping':[10,0],'Readiness score':[10,12],'Study plans':[-10,14],
+  '1-month trial + card':[-12,-12],'Stripe recurring billing':[10,-4],
+  'Dunning / retries':[10,-8],'XP & levels':[10,2],'Streaks & daily goal':[10,-8],
+  'Push reminders':[10,12],'Auth & sync (OAuth)':[10,-6],
+  'Content CMS + 4-gloss gate':[-14,-12],'Analytics instrumentation':[10,12],
+  'Admin / billing console':[10,12],'Digital-services tax':[10,-8],
+  'PDPA / PDPL consent':[10,12],'Mock exams':[10,-6],'Characters / stroke order':[10,12],
+  'AI speaking partner':[-14,-12],'Speech / pronunciation':[10,12],
+  'Local payment methods':[-12,2],'Offline mode':[10,4],'Leaderboards':[10,4],
+};
+
+// ---- geometry ----
+const M = {l:64, r:230, t:54, b:64}, W=1120, H=700;
+const px = e => M.l + (e/10)*(W-M.l-M.r);
+const py = v => (H-M.b) - (v/10)*(H-M.t-M.b);
+
+const svg = document.getElementById('chart');
+const NS = 'http://www.w3.org/2000/svg';
+const el = (n,a)=>{const x=document.createElementNS(NS,n);for(const k in a)x.setAttribute(k,a[k]);return x;};
+
+// quadrant tints (split at value 6.5, effort 6)
+const xMid = px(6), yMid = py(6.5);
+const quads = [
+  {x:M.l, y:M.t, w:xMid-M.l, h:yMid-M.t, fill:'#2A9D8F', op:.06, t:'QUICK WINS', tx:M.l+14, ty:M.t+24, tc:'#2A9D8F'},
+  {x:xMid, y:M.t, w:(W-M.r)-xMid, h:yMid-M.t, fill:'#1F4E79', op:.06, t:'BIG BETS', tx:(W-M.r)-14, ty:M.t+24, tc:'#1F4E79', anchor:'end'},
+  {x:M.l, y:yMid, w:xMid-M.l, h:(H-M.b)-yMid, fill:'#9AA7B6', op:.05, t:'FILL-INS', tx:M.l+14, ty:(H-M.b)-14, tc:'#8A98AA'},
+  {x:xMid, y:yMid, w:(W-M.r)-xMid, h:(H-M.b)-yMid, fill:'#D7402B', op:.05, t:'DEPRIORITISE', tx:(W-M.r)-14, ty:(H-M.b)-14, tc:'#C2402B', anchor:'end'},
+];
+quads.forEach(q=>{
+  svg.appendChild(el('rect',{x:q.x,y:q.y,width:q.w,height:q.h,fill:q.fill,'fill-opacity':q.op}));
+  const t=el('text',{x:q.tx,y:q.ty,class:'quad',fill:q.tc});
+  if(q.anchor)t.setAttribute('text-anchor',q.anchor);
+  t.textContent=q.t; svg.appendChild(t);
+});
+
+// plot border + gridlines
+svg.appendChild(el('rect',{x:M.l,y:M.t,width:W-M.l-M.r,height:H-M.t-M.b,fill:'none',stroke:'#E3E9F0'}));
+for(let i=0;i<=10;i+=2){
+  svg.appendChild(el('line',{x1:px(i),y1:M.t,x2:px(i),y2:H-M.b,stroke:'#EEF2F7'}));
+  svg.appendChild(el('line',{x1:M.l,y1:py(i),x2:W-M.r,y2:py(i),stroke:'#EEF2F7'}));
+  const tx=el('text',{x:px(i),y:H-M.b+18,class:'tick','text-anchor':'middle'});tx.textContent=i;svg.appendChild(tx);
+  const ty=el('text',{x:M.l-10,y:py(i)+4,class:'tick','text-anchor':'end'});ty.textContent=i;svg.appendChild(ty);
+}
+// quadrant divider lines (emphasised)
+svg.appendChild(el('line',{x1:xMid,y1:M.t,x2:xMid,y2:H-M.b,stroke:'#CBD6E2','stroke-dasharray':'5 5'}));
+svg.appendChild(el('line',{x1:M.l,y1:yMid,x2:W-M.r,y2:yMid,stroke:'#CBD6E2','stroke-dasharray':'5 5'}));
+
+// axis labels
+const xl=el('text',{x:(M.l+(W-M.r))/2,y:H-18,class:'axis','text-anchor':'middle'});
+xl.textContent='Build effort / complexity  →'; svg.appendChild(xl);
+const yl=el('text',{x:18,y:(M.t+(H-M.b))/2,class:'axis','text-anchor':'middle',transform:`rotate(-90 18 ${(M.t+(H-M.b))/2})`});
+yl.textContent='User / business value  →'; svg.appendChild(yl);
+
+// points
+DATA.forEach(([label,e,v,area,prio])=>{
+  const cx=px(e), cy=py(v), r=PRIO[prio], col=AREAS[area].c;
+  const g=el('g',{class:'pt'});
+  g.appendChild(el('circle',{cx,cy,r,fill:col,'fill-opacity':.82,stroke:'#fff','stroke-width':2}));
+  const tt=el('title');tt.textContent=`${label} — ${area} · ${prio} · value ${v}, effort ${e}`;g.appendChild(tt);
+  const [dx,dy]=OFFS[label]||[10,3];
+  const t=el('text',{x:cx+dx,y:cy+dy,class:'lbl'});
+  if(dx<0)t.setAttribute('text-anchor','end');
+  t.textContent=label; g.appendChild(t);
+  svg.appendChild(g);
+});
+
+// legend
+const lg=document.getElementById('legend');
+Object.values(AREAS).forEach(a=>{
+  const d=document.createElement('div');d.className='lg';
+  d.innerHTML=`<span class="dot" style="background:${a.c}"></span>${a.name}`;lg.appendChild(d);
+});
+const sizes=document.createElement('div');sizes.className='sizes';
+sizes.innerHTML=`<span class="sz"><i style="width:22px;height:22px"></i>P0</span>
+  <span class="sz"><i style="width:16px;height:16px"></i>P1</span>
+  <span class="sz"><i style="width:11px;height:11px"></i>P2</span>`;
+lg.appendChild(sizes);
+</script>
+</body>
+</html>
