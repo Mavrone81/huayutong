@@ -203,12 +203,7 @@ export default function Onboarding() {
           <h2>{t("reg_h", "Create your account")}</h2>
           <p className="hint">Your progress, streak and trial are saved to your account across all devices.</p>
           <div style={{ display: "grid", gap: 12 }}>
-            <button className="opt" style={{ justifyContent: "center", gap: 10 }}><span className="em" style={{ fontSize: 19 }}>🇬</span><b>Continue with Google</b></button>
-            <button className="opt" style={{ justifyContent: "center", gap: 10 }}><span className="em" style={{ fontSize: 19 }}></span><b>Continue with Apple</b></button>
-            <div style={{ display: "flex", alignItems: "center", gap: 14, color: "var(--ink-3)", fontSize: 12, fontWeight: 700, margin: "4px 0" }}>
-              <span style={{ flex: 1, height: 1, background: "var(--line)" }} />OR<span style={{ flex: 1, height: 1, background: "var(--line)" }} />
-            </div>
-            <label className="field"><small>{t("reg_email", "Email or phone")}</small><input type="text" placeholder="ploy@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+            <label className="field"><small>{t("reg_email", "Email or phone")}</small><input type="text" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
             <label className="field" style={{ marginBottom: 0 }}><small>{t("reg_pass", "Password")}</small><input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
               <small style={{ color: "var(--ink-3)", fontSize: 11.5, fontWeight: 500, display: "block", marginTop: 5 }}>At least 8 characters</small></label>
             <label className="field" style={{ marginBottom: 0, marginTop: 14 }}><small>Date of birth</small><input type="text" placeholder="DD / MM / YYYY" />

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { Logo } from "./Logo";
+import { LangSwitcher } from "./LangSwitcher";
+import { api, ProgressDTO } from "@/lib/api";
 
 type Nav = "learn" | "courses" | "review" | "hsk" | "account" | "settings" | "write";
 
@@ -15,9 +17,21 @@ const ITEMS: { key: Nav; href: string; i18n: string; fallback: string }[] = [
   { key: "account", href: "/billing", i18n: "nav_account", fallback: "Account" },
 ];
 
+const initials = (name: string) => name.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+
 export function AppShell({ active, children }: { active: Nav; children: React.ReactNode }) {
   const { t } = useI18n();
   const [bell, setBell] = useState(false);
+  const [p, setP] = useState<ProgressDTO | null>(null);
+  const [avatar, setAvatar] = useState("·");
+
+  useEffect(() => {
+    api.getProgress().then(setP).catch(() => setP(null));
+    api.getCurrentUser().then((u) => setAvatar(initials(u.name))).catch(() => {});
+  }, []);
+
+  const due = p?.reviewsDue ?? 0;
+
   return (
     <>
       <div className="appbar">
@@ -31,16 +45,22 @@ export function AppShell({ active, children }: { active: Nav; children: React.Re
             ))}
           </nav>
           <div className="appbar-right">
-            <span className="streak-pill">🔥 12</span>
-            <span className="chip teal">⭐ 2,340 XP</span>
-            <span className="bell" onClick={() => setBell((b) => !b)}>🔔<i>3</i></span>
+            <LangSwitcher />
+            {p && <span className="streak-pill">🔥 {p.streak}</span>}
+            {p && <span className="chip teal">⭐ {p.xp.toLocaleString()} XP</span>}
+            <span className="bell" onClick={() => setBell((b) => !b)}>🔔{due > 0 && <i>{due}</i>}</span>
             <div className={"bell-dd" + (bell ? " open" : "")}>
               <h5>Notifications</h5>
-              <div className="ntf"><span className="ic">🧠</span><div><b>14 words are due for review</b><small>Clear them in ~6 minutes · 9:00</small></div></div>
-              <div className="ntf"><span className="ic">⏳</span><div><b>Trial reminder</b><small>Your free month ends 6 July — 30 days left</small></div></div>
-              <div className="ntf"><span className="ic">🏆</span><div><b>You entered the Gold league</b><small>Weekly leaderboard reset · yesterday</small></div></div>
+              {due > 0 ? (
+                <Link href="/lesson" className="ntf" onClick={() => setBell(false)}>
+                  <span className="ic">🧠</span>
+                  <div><b>{due} word{due === 1 ? "" : "s"} due for review</b><small>Tap to clear your review queue</small></div>
+                </Link>
+              ) : (
+                <div className="ntf"><span className="ic">✅</span><div><b>You&apos;re all caught up</b><small>No reviews due right now</small></div></div>
+              )}
             </div>
-            <Link href="/settings" className="avatar">PL</Link>
+            <Link href="/settings" className="avatar">{avatar}</Link>
           </div>
         </div>
       </div>

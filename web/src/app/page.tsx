@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { Logo } from "@/components/Logo";
+import { LangSwitcher } from "@/components/LangSwitcher";
 import { api, PlanDTO } from "@/lib/api";
 
 function Price({ label, fallbackInterval }: { label: string; fallbackInterval: string }) {
@@ -31,6 +32,7 @@ export default function Landing() {
             <span>Courses</span><span>HSK Prep</span><span>Method</span><span>Pricing</span>
           </div>
           <div className="cta">
+            <LangSwitcher />
             <Link className="btn btn-ghost btn-sm" href="/login">{t("login", "Log in")}</Link>
             <Link className="btn btn-primary btn-sm" href="/onboarding">{t("trial_cta", "Start 1-month free trial")}</Link>
           </div>

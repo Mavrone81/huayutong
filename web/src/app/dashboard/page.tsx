@@ -9,7 +9,11 @@ import { api, ProgressDTO } from "@/lib/api";
 export default function Dashboard() {
   const { t } = useI18n();
   const [d, setD] = useState<ProgressDTO | null | "loading">("loading");
-  useEffect(() => { api.getProgress().then(setD).catch(() => setD(null)); }, []);
+  const [name, setName] = useState<string>("");
+  useEffect(() => {
+    api.getProgress().then(setD).catch(() => setD(null));
+    api.getCurrentUser().then((u) => setName(u.name)).catch(() => {});
+  }, []);
 
   if (d === "loading") return <AppShell active="learn"><div className="wrap dash"><div className="card panel">Loading…</div></div></AppShell>;
   if (d === null) return (
@@ -29,7 +33,7 @@ export default function Dashboard() {
     <AppShell active="learn">
       <div className="wrap dash">
         <div className="dash-head">
-          <div><h1>{t("dash_h1", "Good morning, Ploy 👋")}</h1><p>You&apos;re {d.hsk1Readiness}% of the way to HSK 1. Keep it going.</p></div>
+          <div><h1>Welcome back{name ? `, ${name}` : ""} 👋</h1><p>You&apos;re {d.hsk1Readiness}% of the way to HSK 1. Keep it going.</p></div>
           {d.nextLessonId && <Link className="btn btn-primary" href={`/lesson?lesson=${d.nextLessonId}`}>{t("dash_cta", "▶ Continue lesson")}</Link>}
         </div>
 
@@ -66,15 +70,6 @@ export default function Dashboard() {
               ))}
             </div>
 
-            <div className="card panel">
-              <h3><span>This week</span><span className="chip gold">🎯 keep your streak</span></h3>
-              <div className="wk">
-                {[["M", 55, true], ["T", 80, true], ["W", 18, false], ["T", 65, true], ["F", 100, true], ["S", 72, true], ["S", 34, false]].map((x, i) => (
-                  <div key={i} className={x[2] ? "hit" : ""}><i style={{ height: `${x[1]}%` }} />{x[0]}</div>
-                ))}
-              </div>
-              <small style={{ color: "var(--ink-3)", display: "block", marginTop: 12 }}>Minutes studied per day · goal: {d.goalMinutes} min</small>
-            </div>
           </div>
 
           <div style={{ display: "grid", gap: 20 }}>
@@ -87,15 +82,6 @@ export default function Dashboard() {
                   <span className="due" style={s.due === "due now" ? undefined : { background: "var(--gold-soft)", color: "#B97A18" }}>{s.due === "due now" ? t("due_now", "due now") : s.due}</span>
                 </div>
               ))}
-            </div>
-
-            <div className="card panel">
-              <h3><span>Gold league</span><span className="chip gold">4 days left</span></h3>
-              <div className="lb-row"><span className="rk">1</span><span className="av2" style={{ background: "#7C5CBF" }}>MN</span><b>Minh N.</b><span>1,420 XP</span></div>
-              <div className="lb-row"><span className="rk">2</span><span className="av2" style={{ background: "#2A9D8F" }}>AR</span><b>Aisyah R.</b><span>1,180 XP</span></div>
-              <div className="lb-row me"><span className="rk">3</span><span className="av2" style={{ background: "#E9A23B" }}>PL</span><b>You</b><span>{d.xp.toLocaleString()} XP</span></div>
-              <div className="lb-row"><span className="rk">4</span><span className="av2" style={{ background: "#1F4E79" }}>TV</span><b>Tuan V.</b><span>980 XP</span></div>
-              <small style={{ color: "var(--ink-3)", display: "block", marginTop: 10 }}>Top 10 advance to Sapphire · opt out in Settings</small>
             </div>
 
             <div className="card panel">

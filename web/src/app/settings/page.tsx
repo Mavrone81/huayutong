@@ -1,24 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { AppShell } from "@/components/AppShell";
 import { LANGS, Lang } from "@/lib/dict";
+import { api } from "@/lib/api";
 
 function Toggle({ on, locked, onClick }: { on: boolean; locked?: boolean; onClick?: () => void }) {
   return <div className={"toggle" + (on ? " on" : "")} style={locked ? { opacity: 0.5, pointerEvents: "none" } : undefined} onClick={onClick} />;
 }
 
+const initials = (name: string) => name.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+
 export default function Settings() {
   const { lang, setLang } = useI18n();
+  const [me, setMe] = useState<{ name: string; email: string | null } | null>(null);
+  useEffect(() => { api.getCurrentUser().then((u) => setMe({ name: u.name, email: u.email })).catch(() => setMe(null)); }, []);
   return (
     <AppShell active="settings">
       <div className="set">
         <div className="card panel">
           <h3>Profile</h3>
           <div className="set-row">
-            <div className="avatar" style={{ width: 48, height: 48, fontSize: 17 }}>PL</div>
-            <div className="l"><b>Ploy Suwannarat</b><small>ploy@example.com · joined June 2026</small></div>
+            <div className="avatar" style={{ width: 48, height: 48, fontSize: 17 }}>{me ? initials(me.name) : "·"}</div>
+            <div className="l"><b>{me?.name ?? "—"}</b><small>{me?.email ?? "Not signed in"}</small></div>
             <button className="btn btn-ghost btn-sm">Edit</button>
           </div>
         </div>
