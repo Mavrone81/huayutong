@@ -9,12 +9,12 @@ import { api, ProgressDTO } from "@/lib/api";
 
 type Nav = "learn" | "courses" | "review" | "hsk" | "account" | "settings" | "write";
 
-const ITEMS: { key: Nav; href: string; i18n: string; fallback: string }[] = [
-  { key: "learn", href: "/dashboard", i18n: "nav_learn", fallback: "Learn" },
-  { key: "courses", href: "/courses", i18n: "nav_courses2", fallback: "Courses" },
-  { key: "review", href: "/lesson", i18n: "nav_review", fallback: "Review" },
-  { key: "hsk", href: "/hsk", i18n: "nav_hskprep", fallback: "HSK Prep" },
-  { key: "account", href: "/billing", i18n: "nav_account", fallback: "Account" },
+const ITEMS: { key: Nav; href: string; i18n: string; fallback: string; icon: string }[] = [
+  { key: "learn", href: "/dashboard", i18n: "nav_learn", fallback: "Learn", icon: "🏠" },
+  { key: "courses", href: "/courses", i18n: "nav_courses2", fallback: "Courses", icon: "📚" },
+  { key: "review", href: "/lesson", i18n: "nav_review", fallback: "Review", icon: "🧠" },
+  { key: "hsk", href: "/hsk", i18n: "nav_hskprep", fallback: "HSK Prep", icon: "🎓" },
+  { key: "account", href: "/billing", i18n: "nav_account", fallback: "Account", icon: "👤" },
 ];
 
 const initials = (name: string) => name.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
@@ -65,6 +65,14 @@ export function AppShell({ active, children }: { active: Nav; children: React.Re
         </div>
       </div>
       {children}
+      <div className="mobile-tabs-spacer" />
+      <nav className="mobile-tabs">
+        {ITEMS.map((it) => (
+          <Link key={it.key} href={it.href} className={active === it.key ? "on" : ""}>
+            <span className="ti">{it.icon}</span>{t(it.i18n, it.fallback)}
+          </Link>
+        ))}
+      </nav>
     </>
   );
 }

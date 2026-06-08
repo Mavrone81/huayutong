@@ -15,7 +15,8 @@
   --hanzi:'Noto Serif SC',serif;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15px;line-height:1.55}
+body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15px;line-height:1.55;overflow-x:hidden}
+img,svg,select,input{max-width:100%}
 button{font-family:inherit;cursor:pointer;border:none;background:none}
 input,select{font-family:inherit}
 a{color:inherit;text-decoration:none}
@@ -332,4 +333,52 @@ footer .wrap{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap}
   .swatches{grid-template-columns:repeat(3,1fr)}
   .adm{grid-template-columns:1fr} .adm-side{display:flex;overflow-x:auto} .kpis{grid-template-columns:1fr 1fr}
   .appnav{display:none}
+}
+
+/* ===== responsive grid utilities (override inline grids via classes) ===== */
+/* min-width:0 lets grid/flex tracks shrink below content (prevents mobile blowout) */
+.hero>*,.dash-cols>*,.resp-2col>*,.resp-asym>*,.resp-asym-r>*,.resp-content>*,.skill-row .meta,.srs-item .g{min-width:0}
+.resp-2col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.resp-asym{display:grid;grid-template-columns:1fr 1.5fr;gap:20px;align-items:start}
+.resp-asym-r{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}
+.resp-content{display:grid;grid-template-columns:1.5fr 1fr;gap:18px}
+
+/* ===== mobile bottom tab bar (authenticated app) ===== */
+.mobile-tabs,.mobile-tabs-spacer{display:none}
+
+@media (max-width:900px){
+  .resp-2col,.resp-asym,.resp-asym-r,.resp-content{grid-template-columns:1fr}
+  .mobile-tabs{position:fixed;bottom:0;left:0;right:0;z-index:60;display:flex;justify-content:space-around;
+    background:#fff;border-top:1px solid var(--line);padding:8px 4px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -2px 14px rgba(22,50,79,.08)}
+  .mobile-tabs a{display:grid;gap:3px;justify-items:center;font-size:10.5px;font-weight:700;color:var(--ink-3);text-decoration:none;padding:2px 8px}
+  .mobile-tabs a .ti{font-size:20px;line-height:1}
+  .mobile-tabs a.on{color:var(--red)}
+  .mobile-tabs-spacer{display:block;height:72px}
+}
+
+/* ===== phone tweaks ===== */
+@media (max-width:640px){
+  .wrap{padding:0 16px}
+  .hero{padding:26px 0 34px;gap:26px}
+  .hero h1{font-size:30px}
+  .hero p.lead{font-size:16px;margin:16px 0 22px}
+  .hero-ctas{flex-wrap:wrap} .hero-ctas .note{flex-basis:100%}
+  .hero-ctas .btn{width:100%;justify-content:center}
+  .land-nav .logo{flex:1}
+  .hv-card{padding:22px} .hv-hanzi{font-size:56px} .hv-pinyin{font-size:17px}
+  .hv-float.f1{top:-12px;right:0} .hv-float.f2{bottom:-10px;left:0}
+  .land-nav{height:auto;flex-wrap:wrap;gap:10px;padding:12px 0}
+  .land-nav .links{display:none}
+  .land-nav .cta{margin-left:auto;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+  .feat,.pricing{padding:38px 0} .how{padding:10px 0 30px}
+  .feat h2,.pricing h2,.how h2{font-size:24px}
+  .feat .sub,.pricing .sub,.how .sub{margin-bottom:28px}
+  .appbar-in{gap:10px;height:56px}
+  .appbar-right{gap:8px}
+  .appbar-right .streak-pill,.appbar-right .chip{display:none}  /* shown in page body instead */
+  .dash{padding:22px 0 40px} .dash-head h1{font-size:21px}
+  .panel,.q-card{padding:20px} .onb-card{padding:24px} .onb{margin:28px auto}
+  .q-hanzi{font-size:54px} .trial-banner{padding:22px}
+  .lesson,.exam,.bill,.set{margin-top:24px}
+  footer .wrap{flex-direction:column;gap:16px}
 }

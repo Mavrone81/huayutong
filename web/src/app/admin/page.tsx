@@ -112,7 +112,7 @@ function Console({ role, onLogout }: { role: string; onLogout: () => void }) {
               <Kpi s="Refunds (30d)" v={usd(ov.refundsMinor)} d={`${ov.refundsCount} issued · audited`} />
               <Kpi s="Markets" v={String(ov.markets.length)} d="active languages" up />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18 }}>
+            <div className="resp-asym-r">
               <div className="card panel">
                 <h3>Signups by market (by UI language)</h3>
                 <div className="wk" style={{ height: 110 }}>
@@ -171,7 +171,7 @@ function Console({ role, onLogout }: { role: string; onLogout: () => void }) {
             {detail && (
               <div className="card panel">
                 <h3><span>{detail.display_name || detail.email} — {detail.psp_customer_id || "no PSP id"}</span>{detail.status && <span className={"chip " + chipFor(detail.status)}>{detail.status}</span>}</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 30px" }}>
+                <div className="resp-2col">
                   <div>
                     <Cov b="Plan" v={detail.plan_code || "—"} />
                     <Cov b="Trial ends" v={dateLabel(detail.trial_ends_at)} />
@@ -209,7 +209,7 @@ function Console({ role, onLogout }: { role: string; onLogout: () => void }) {
                 {content.blocked.length ? `⛔ ${content.blocked.length} items blocked from publishing` : `✓ All ${content.totalItems} published items are fully localized`}
               </b>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 18 }}>
+            <div className="resp-content">
               <div className="card panel">
                 <h3>{content.blocked.length ? "Blocked items (missing a gloss)" : "Recently published items"}</h3>
                 {content.blocked.length === 0 && <small style={{ color: "var(--ink-3)" }}>Nothing blocked — every item has all four language glosses.</small>}

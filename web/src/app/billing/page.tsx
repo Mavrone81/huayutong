@@ -51,7 +51,7 @@ export default function Billing() {
               {!canceled && <button className="btn btn-primary">Keep Premium</button>}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+            <div className="resp-2col">
               <div className="card panel">
                 <h3>Subscription</h3>
                 <Row k="Plan" v={<b>{sub.planCode === "premium_annual" ? "Premium Annual" : "Premium Monthly"}</b>} />

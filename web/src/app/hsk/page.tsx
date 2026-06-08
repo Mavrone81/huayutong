@@ -77,7 +77,7 @@ export default function Hsk() {
           <div><h1>HSK {r!.targetLevel} — exam plan</h1><p>{r!.examDate ? `Target exam: ${new Date(r!.examDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })} · ${r!.daysLeft} days left` : "No exam date set"}</p></div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 20, alignItems: "start" }}>
+        <div className="resp-asym">
           <div style={{ display: "grid", gap: 20 }}>
             <div className="card" style={{ padding: 30, textAlign: "center" }}>
               <h3 style={{ fontSize: 16, color: "var(--navy)", marginBottom: 8 }}>Readiness score</h3>
