@@ -89,8 +89,8 @@ function Console({ role, onLogout }: { role: string; onLogout: () => void }) {
         <button className={tab === 2 ? "on" : ""} onClick={() => setTab(2)}>🌐 Content &amp; Localization</button>
         <div className="sec">Compliance</div>
         <button className={tab === 3 ? "on" : ""} onClick={() => setTab(3)}>📜 Audit log</button>
-        <div style={{ marginTop: 30, padding: 12, background: "rgba(255,255,255,.06)", borderRadius: 12, fontSize: 11.5, color: "#9FB4C8" }}>
-          🔐 Signed in as <b style={{ color: "#fff" }}>{role}</b>. Refunds &amp; price overrides need finance_admin.
+        <div className="adm-rbac" style={{ marginTop: 30, padding: 12, background: "rgba(255,255,255,.06)", borderRadius: 12, fontSize: 11.5, color: "#9FB4C8" }}>
+          <span className="adm-rbac-text">🔐 Signed in as <b style={{ color: "#fff" }}>{role}</b>. Refunds &amp; price overrides need finance_admin.</span>
           <button onClick={onLogout} style={{ color: "#C7D5E3", textDecoration: "underline", marginTop: 8, display: "block" }}>Sign out</button>
         </div>
       </aside>

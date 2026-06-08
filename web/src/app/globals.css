@@ -354,6 +354,17 @@ footer .wrap{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap}
   .mobile-tabs a .ti{font-size:20px;line-height:1}
   .mobile-tabs a.on{color:var(--red)}
   .mobile-tabs-spacer{display:block;height:72px}
+
+  /* admin sidebar -> clean horizontal tab strip */
+  .adm-side{flex-direction:row;align-items:center;gap:8px;padding:8px 12px}
+  .adm-side .logo{margin:0 4px 0 0;flex:none;font-size:16px}
+  .adm-side .sec{display:none}
+  .adm-side button{width:auto;white-space:nowrap;margin:0;flex:none;padding:8px 12px}
+  .adm-side .adm-rbac{margin:0 0 0 auto;padding:6px 10px;flex:none}
+  .adm-side .adm-rbac-text{display:none}
+  .adm-side .adm-rbac button{margin-top:0}
+  .adm-main{padding:18px 16px}
+  .kpi .v{font-size:22px}
 }
 
 /* ===== phone tweaks ===== */
