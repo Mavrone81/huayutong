@@ -44,6 +44,7 @@ client secret), which vaults the card and posts the resulting `payment_method` i
 | Auth | `POST /auth/register · /auth/login · /auth/logout · /auth/refresh`, `GET /me` |
 | Billing | `GET /billing/plans · /billing/subscription`, `POST /billing/setup-intent · /billing/trials · /billing/subscription/cancel` |
 | Learning | `GET /courses · /me/progress · /lessons/{id} · /srs/queue`, `POST /lessons/{id}/complete · /srs/reviews`, `PUT /me/daily-goal` |
+| HSK prep | `GET /me/readiness · /study-plans/active · /mock-exams · /attempts/{id}`, `POST /study-plans · /mock-exams/{id}/attempts · /attempts/{id}/submit`, `PATCH /study-plan-tasks/{id}` |
 | Admin | `POST /admin/login·logout`, `GET /admin/me·overview·customers·customers/{id}·content·audit`, `POST /admin/refunds·trials/extend·users·customers/{id}/password-reset`, `PUT /admin/customers/{id}/price` |
 | System | `POST /webhooks/stripe`, `POST /internal/run-billing` |
 
@@ -90,8 +91,17 @@ coverage + publish-gate blocked items), **Audit log**. Actions — extend trial,
 price override, create user, password reset — are **RBAC-gated** (wrong role → 403) and every
 mutation writes to `audit_logs`.
 
+## HSK prep (real, Postgres-backed)
+
+`/hsk` lets a learner set a target HSK level + exam date → a **study plan** with dated tasks
+(toggle complete) is generated. **Readiness** (`/me/readiness`) is computed from mock-exam scores
+and vocabulary mastery (estimated level, words mastered/needed, section breakdown, history chart).
+**Mock exams** (`db/seed_hskprep.sql`) generate timed MCQ questions from real items; the `/exam`
+screen runs the attempt and **submits for server-side grading** (`/attempts/{id}/submit`), which
+records the score, per-section breakdown, and a readiness snapshot for the history chart.
+
 ## Still mock
 
-A couple of dashboard widgets (weekly-activity chart, leaderboard) are cosmetic. Lesson exercises
-are multiple-choice generated from the item glosses (the prototype's tone/sentence/match drills are
-a future enhancement). Mock exams / study plans (HSK-prep screens) are still static.
+A couple of dashboard widgets (weekly-activity chart, leaderboard) are cosmetic. Learning/exam
+exercises are multiple-choice generated from the item glosses (the prototype's tone/sentence/match
+and listening-audio drills are a future enhancement).

@@ -1,84 +1,153 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
+import { api, ReadinessDTO, PlanTask, MockExam } from "@/lib/api";
+
+type State = "loading" | "noplan" | "ready" | "login";
 
 export default function Hsk() {
+  const router = useRouter();
+  const [state, setState] = useState<State>("loading");
+  const [r, setR] = useState<ReadinessDTO | null>(null);
+  const [tasks, setTasks] = useState<PlanTask[]>([]);
+  const [mocks, setMocks] = useState<MockExam[]>([]);
+  const [target, setTarget] = useState(4);
+  const [examDate, setExamDate] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    try {
+      const rd = await api.getReadiness();
+      if (!rd.hasPlan) { setState("noplan"); return; }
+      const [plan, mk] = await Promise.all([api.getStudyPlan(), api.getMockExams()]);
+      setR(rd); setTasks(plan.tasks); setMocks(mk.mockExams); setState("ready");
+    } catch {
+      setState("login");
+    }
+  };
+  useEffect(() => { load(); }, []);
+
+  const createPlan = async () => {
+    setBusy(true);
+    try { await api.createStudyPlan(target, examDate || null); await load(); } finally { setBusy(false); }
+  };
+  const toggle = async (id: string) => {
+    const res = await api.toggleTask(id);
+    setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, is_done: res.isDone } : t)));
+  };
+  const startMock = async (id: string) => {
+    const { attemptId } = await api.startAttempt(id);
+    router.push(`/exam?attempt=${attemptId}`);
+  };
+
+  if (state === "loading") return <AppShell active="hsk"><div className="wrap dash"><div className="card panel">Loading…</div></div></AppShell>;
+  if (state === "login") return <AppShell active="hsk"><div className="wrap dash"><div className="card panel" style={{ textAlign: "center", padding: 40 }}><h3 style={{ marginBottom: 12 }}>Please sign in</h3><Link className="btn btn-primary" href="/login" style={{ display: "inline-flex" }}>Log in</Link></div></div></AppShell>;
+
+  if (state === "noplan") return (
+    <AppShell active="hsk">
+      <div className="wrap dash">
+        <div className="dash-head"><div><h1>HSK exam prep</h1><p>Set a target level and exam date — we&apos;ll build a study plan and track your readiness.</p></div></div>
+        <div className="card panel" style={{ maxWidth: 520 }}>
+          <h3>🎯 Set your exam goal</h3>
+          <label className="field"><small>Target HSK level</small>
+            <select value={target} onChange={(e) => setTarget(Number(e.target.value))}>
+              {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>HSK {n}</option>)}
+            </select>
+          </label>
+          <label className="field"><small>Exam date (optional)</small><input type="date" value={examDate} onChange={(e) => setExamDate(e.target.value)} /></label>
+          <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={createPlan}>{busy ? "Creating…" : "Create my study plan →"}</button>
+        </div>
+      </div>
+    </AppShell>
+  );
+
+  const pct = r!.readinessPct ?? 0;
+  const offset = Math.round(236 * (1 - pct / 100));
+  const sections = r!.sectionScores ?? [];
+  const weakest = sections.length ? [...sections].sort((a, b) => a.score - b.score)[0] : null;
+  const hist = r!.history ?? [];
+
   return (
     <AppShell active="hsk">
       <div className="wrap dash">
         <div className="dash-head">
-          <div><h1>HSK 4 — exam plan</h1><p>Target exam: 12 December 2026 · 189 days left · plan on track</p></div>
-          <Link className="btn btn-navy" href="/exam">Take mock exam</Link>
+          <div><h1>HSK {r!.targetLevel} — exam plan</h1><p>{r!.examDate ? `Target exam: ${new Date(r!.examDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })} · ${r!.daysLeft} days left` : "No exam date set"}</p></div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 20, alignItems: "start" }} className="hsk-grid">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 20, alignItems: "start" }}>
           <div style={{ display: "grid", gap: 20 }}>
             <div className="card" style={{ padding: 30, textAlign: "center" }}>
               <h3 style={{ fontSize: 16, color: "var(--navy)", marginBottom: 8 }}>Readiness score</h3>
               <div style={{ position: "relative", width: 190, height: 110, margin: "6px auto 4px", overflow: "hidden" }}>
                 <svg viewBox="0 0 190 190" style={{ width: 190, height: 190 }}>
                   <path d="M 20 95 A 75 75 0 0 1 170 95" fill="none" stroke="#E3E9F0" strokeWidth="16" strokeLinecap="round" />
-                  <path d="M 20 95 A 75 75 0 0 1 170 95" fill="none" stroke="#E9A23B" strokeWidth="16" strokeLinecap="round" strokeDasharray="236" strokeDashoffset="92" />
+                  <path d="M 20 95 A 75 75 0 0 1 170 95" fill="none" stroke="#E9A23B" strokeWidth="16" strokeLinecap="round" strokeDasharray="236" strokeDashoffset={offset} />
                 </svg>
-                <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, fontSize: 34, fontWeight: 800, color: "var(--navy)" }}>61%</div>
+                <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, fontSize: 34, fontWeight: 800, color: "var(--navy)" }}>{pct}%</div>
               </div>
-              <p style={{ color: "var(--ink-2)", fontSize: 13.5, marginTop: 4 }}>Estimated level today: <b>HSK 3</b> · on pace for HSK 4 by November</p>
+              <p style={{ color: "var(--ink-2)", fontSize: 13.5, marginTop: 4 }}>Estimated level today: <b>HSK {r!.estimatedLevel}</b></p>
               <div style={{ display: "flex", justifyContent: "center", gap: 26, marginTop: 20 }}>
-                {[["1,240", "words mastered"], ["2,000", "needed for HSK 4"], ["72%", "last mock score"]].map((m, i) => (
-                  <div key={i}><b style={{ display: "block", fontSize: 19, color: "var(--navy)" }}>{m[0]}</b><small style={{ color: "var(--ink-3)", fontSize: 12 }}>{m[1]}</small></div>
-                ))}
+                <Metric v={String(r!.wordsMastered ?? 0)} label="words mastered" />
+                <Metric v={(r!.wordsNeeded ?? 0).toLocaleString()} label={`needed for HSK ${r!.targetLevel}`} />
+                <Metric v={r!.lastMockScore != null ? `${r!.lastMockScore}%` : "—"} label="last mock score" />
               </div>
             </div>
 
             <div className="card panel">
-              <h3>Section scores — last 3 mocks</h3>
-              {[["Listening", 58, "linear-gradient(90deg,var(--red),#E66B52)"], ["Reading", 74, ""], ["Writing", 81, ""]].map((s, i) => (
-                <div key={i} className="srs-item"><span className="g" style={{ width: 90, flex: "none", fontWeight: 700, color: "var(--navy)" }}>{s[0]}</span><div className="bar" style={{ flex: 1, margin: 0 }}><i style={{ width: `${s[1]}%`, background: (s[2] as string) || undefined }} /></div><span style={{ fontWeight: 800, fontSize: 13, width: 42, textAlign: "right" }}>{s[1]}%</span></div>
+              <h3>Section scores — last mock</h3>
+              {sections.length === 0 && <small style={{ color: "var(--ink-3)" }}>Take a mock exam to see your section breakdown.</small>}
+              {sections.map((s, i) => (
+                <div key={i} className="srs-item"><span className="g" style={{ width: 90, flex: "none", fontWeight: 700, color: "var(--navy)" }}>{s.name}</span><div className="bar" style={{ flex: 1, margin: 0 }}><i style={{ width: `${s.score}%`, background: s.score < 60 ? "linear-gradient(90deg,var(--red),#E66B52)" : undefined }} /></div><span style={{ fontWeight: 800, fontSize: 13, width: 42, textAlign: "right" }}>{s.score}%</span></div>
               ))}
-              <small style={{ color: "var(--ink-3)", display: "block", marginTop: 12 }}>Listening is your bottleneck — today&apos;s plan adds a listening drill.</small>
-            </div>
-
-            <div className="card panel">
-              <h3>Weak areas to fix</h3>
-              <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
-                <span className="chip red">Listening · long dialogues</span><span className="chip red">结果 vs 后果</span>
-                <span className="chip gold">Tone pairs 2-3</span><span className="chip gold">把 sentences</span><span className="chip gold">Reading speed</span>
-              </div>
-              <small style={{ display: "block", marginTop: 14, color: "var(--ink-3)" }}>Your review queue has been reweighted toward these.</small>
+              {weakest && <small style={{ color: "var(--ink-3)", display: "block", marginTop: 12 }}>{weakest.name} is your bottleneck — focus your reviews there.</small>}
             </div>
           </div>
 
           <div style={{ display: "grid", gap: 20 }}>
             <div className="card panel">
-              <h3><span>Today&apos;s study plan</span><span className="chip teal">Day 38 of 226</span></h3>
-              {[["Lesson: 方向与位置 (Directions)", "10 min", true], ["Clear review queue (21 cards)", "8 min", true], ["Listening drill: dialogues set 4", "7 min", false], ["10 new HSK 4 words: 商务 set", "6 min", false]].map((tk, i) => (
-                <div key={i} className="srs-item">
-                  <span style={{ width: 18, color: tk[2] ? "var(--teal)" : "var(--ink-3)" }}>{tk[2] ? "☑" : "☐"}</span>
-                  <span className="g" style={{ color: "var(--navy)" }}>{tk[0]}</span><span className="chip navy">{tk[1]}</span>
+              <h3><span>Today&apos;s study plan</span><span className="chip teal">{tasks.filter((t) => t.is_done).length}/{tasks.length} done</span></h3>
+              {tasks.length === 0 && <small style={{ color: "var(--ink-3)" }}>No tasks yet.</small>}
+              {tasks.map((t) => (
+                <div key={t.id} className="srs-item" style={{ cursor: "pointer" }} onClick={() => toggle(t.id)}>
+                  <span style={{ width: 20, color: t.is_done ? "var(--teal)" : "var(--ink-3)", fontSize: 16 }}>{t.is_done ? "☑" : "☐"}</span>
+                  <span className="g" style={{ color: "var(--navy)", textDecoration: t.is_done ? "line-through" : "none", opacity: t.is_done ? 0.6 : 1 }}>{t.description_key}</span>
+                  <span className="chip navy">{new Date(t.due_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
                 </div>
               ))}
             </div>
 
             <div className="card panel">
               <h3>Mock exams</h3>
-              <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "15px 0" }}><div className="lvlrow"><div className="lv">H4</div></div><div style={{ flex: 1 }}><b style={{ fontSize: 14.5 }}>HSK 4 mock · full format</b><br /><small style={{ color: "var(--ink-3)" }}>Listening + reading + writing · 85 min</small></div><Link className="btn btn-primary btn-sm" href="/exam">Start</Link></div>
-              <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "15px 0", borderTop: "1px solid var(--line)" }}><div className="lvlrow"><div className="lv">H4</div></div><div style={{ flex: 1 }}><b style={{ fontSize: 14.5 }}>Listening section only</b><br /><small style={{ color: "var(--ink-3)" }}>Your weakest section · 30 min</small></div><Link className="btn btn-ghost btn-sm" href="/exam">Start</Link></div>
-              <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "15px 0", borderTop: "1px solid var(--line)" }}><div className="lvlrow"><div className="lv" style={{ background: "var(--teal-soft)", color: "var(--teal)" }}>H3</div></div><div style={{ flex: 1 }}><b style={{ fontSize: 14.5 }}>HSK 3 mock — passed 86%</b><br /><small style={{ color: "var(--ink-3)" }}>Taken 14 May 2026</small></div><span className="chip teal">✓</span></div>
+              {mocks.map((m) => (
+                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "13px 0", borderTop: "1px solid var(--line)" }}>
+                  <div className="lvlrow"><div className="lv" style={m.best_score != null ? { background: "var(--teal-soft)", color: "var(--teal)" } : undefined}>H{m.hsk_level}</div></div>
+                  <div style={{ flex: 1 }}><b style={{ fontSize: 14.5 }}>{m.title_key}</b><br /><small style={{ color: "var(--ink-3)" }}>{m.duration_minutes} min{m.attempts ? ` · best ${m.best_score}% · ${m.attempts} attempt(s)` : " · not attempted"}</small></div>
+                  <button className={"btn btn-sm " + (m.best_score != null ? "btn-ghost" : "btn-primary")} onClick={() => startMock(m.id)}>{m.best_score != null ? "Retake" : "Start"}</button>
+                </div>
+              ))}
             </div>
 
             <div className="card panel">
               <h3>Readiness history</h3>
-              <div className="wk" style={{ height: 80 }}>
-                {[["Feb", 30], ["Mar", 38], ["Apr", 47], ["May", 55], ["Jun", 61]].map((m, i) => (
-                  <div key={i} className="hit"><i style={{ height: `${m[1]}%`, background: i === 4 ? "linear-gradient(180deg,var(--teal),#3DBEAF)" : undefined }} />{m[0]}</div>
-                ))}
-              </div>
-              <small style={{ color: "var(--ink-3)", display: "block", marginTop: 10 }}>+6 pts/month average — at this pace you&apos;ll cross 85% (exam-ready) in October.</small>
+              {hist.length === 0 && <small style={{ color: "var(--ink-3)" }}>Your readiness trend will appear after your first mock exam.</small>}
+              {hist.length > 0 && (
+                <div className="wk" style={{ height: 80 }}>
+                  {hist.map((h, i) => (
+                    <div key={i} className="hit"><i style={{ height: `${Math.max(6, h.pct)}%`, background: i === hist.length - 1 ? "linear-gradient(180deg,var(--teal),#3DBEAF)" : undefined }} />{new Date(h.at).toLocaleDateString("en-GB", { month: "short" })}</div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
     </AppShell>
   );
+}
+
+function Metric({ v, label }: { v: string; label: string }) {
+  return <div><b style={{ display: "block", fontSize: 19, color: "var(--navy)" }}>{v}</b><small style={{ color: "var(--ink-3)", fontSize: 12 }}>{label}</small></div>;
 }

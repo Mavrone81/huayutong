@@ -64,7 +64,28 @@ export const api = {
   submitReview: (cardId: string, grade: number) =>
     call("/srs/reviews", { method: "POST", body: JSON.stringify({ cardId, grade }) }),
   setDailyGoal: (minutes: number) => call("/me/daily-goal", { method: "PUT", body: JSON.stringify({ minutes }) }),
+
+  // ---- HSK prep (real) ----
+  getReadiness: (): Promise<ReadinessDTO> => call("/me/readiness"),
+  getStudyPlan: (): Promise<{ plan: { id: string; targetLevel: number; examDate: string | null } | null; tasks: PlanTask[] }> => call("/study-plans/active"),
+  createStudyPlan: (targetLevel: number, examDate: string | null) => call("/study-plans", { method: "POST", body: JSON.stringify({ targetLevel, examDate }) }),
+  toggleTask: (id: string): Promise<{ isDone: boolean }> => call(`/study-plan-tasks/${id}`, { method: "PATCH" }),
+  getMockExams: (): Promise<{ mockExams: MockExam[] }> => call("/mock-exams"),
+  startAttempt: (mockExamId: string): Promise<{ attemptId: string }> => call(`/mock-exams/${mockExamId}/attempts`, { method: "POST" }),
+  getAttempt: (id: string): Promise<AttemptDTO> => call(`/attempts/${id}`),
+  submitAttempt: (id: string, responses: { itemId: string; chosenGloss: string; section: string }[]): Promise<{ score: number; sections: { name: string; score: number }[] }> =>
+    call(`/attempts/${id}/submit`, { method: "POST", body: JSON.stringify({ responses }) }),
 };
+
+export interface ReadinessDTO {
+  hasPlan: boolean; targetLevel?: number; examDate?: string | null; daysLeft?: number | null;
+  readinessPct?: number; estimatedLevel?: number; wordsMastered?: number; wordsNeeded?: number; lastMockScore?: number | null;
+  sectionScores?: { name: string; score: number }[]; history?: { pct: number; at: string }[];
+}
+export interface PlanTask { id: string; due_date: string; description_key: string; lesson_id: string | null; is_done: boolean }
+export interface MockExam { id: string; hsk_level: number; title_key: string; duration_minutes: number; best_score: number | null; attempts: number }
+export interface AttemptQuestion { itemId: string; hanzi: string; pinyin: string; section: string; options: string[]; answer: number }
+export interface AttemptDTO { attemptId: string; level: number; title: string; durationMinutes: number; questions: AttemptQuestion[] }
 
 export interface ProgressSkill { hanzi: string; title: string; lessonId: string; sub: string; progress: number; state: "done" | "active" | "locked"; color: string }
 export interface ProgressDTO {
