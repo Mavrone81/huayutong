@@ -24,9 +24,6 @@ export default function Landing() {
   const price = (code: string, fallback: string) => plans[code]?.priceLabel ?? fallback;
   return (
     <section>
-      <div style={{ background: "var(--gold)", color: "#3a2900", textAlign: "center", padding: "12px 16px", fontWeight: 800, fontSize: 15, letterSpacing: ".01em" }}>
-        🚀 CI/CD test build — this banner was deployed automatically from <code>main</code>
-      </div>
       <div style={{ background: "#fff", borderBottom: "1px solid var(--line)" }}>
         <div className="wrap land-nav">
           <Logo />
