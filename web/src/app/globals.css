@@ -348,10 +348,11 @@ footer .wrap{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap}
 
 @media (max-width:900px){
   .resp-2col,.resp-asym,.resp-asym-r,.resp-content{grid-template-columns:1fr}
-  .mobile-tabs{position:fixed;bottom:0;left:0;right:0;z-index:60;display:flex;justify-content:space-around;
-    background:#fff;border-top:1px solid var(--line);padding:8px 4px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -2px 14px rgba(22,50,79,.08)}
-  .mobile-tabs a{display:grid;gap:3px;justify-items:center;font-size:10.5px;font-weight:700;color:var(--ink-3);text-decoration:none;padding:2px 8px}
+  .mobile-tabs{position:fixed;bottom:0;left:0;right:0;z-index:60;display:flex;justify-content:space-between;
+    background:#fff;border-top:1px solid var(--line);padding:8px 2px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -2px 14px rgba(22,50,79,.08)}
+  .mobile-tabs a{flex:1;min-width:0;display:grid;gap:3px;justify-items:center;font-size:10px;font-weight:700;color:var(--ink-3);text-decoration:none;padding:2px 1px}
   .mobile-tabs a .ti{font-size:20px;line-height:1}
+  .mobile-tabs a span:last-child{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mobile-tabs a.on{color:var(--red)}
   .mobile-tabs-spacer{display:block;height:72px}
 
@@ -384,12 +385,17 @@ footer .wrap{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap}
   .feat,.pricing{padding:38px 0} .how{padding:10px 0 30px}
   .feat h2,.pricing h2,.how h2{font-size:24px}
   .feat .sub,.pricing .sub,.how .sub{margin-bottom:28px}
-  .appbar-in{gap:10px;height:56px}
-  .appbar-right{gap:8px}
+  .appbar-in{gap:8px;height:56px}
+  .appbar .logo{font-size:0;gap:0} .appbar .logo .mark{font-size:18px}  /* mark only, hide brand text */
+  .appbar-right{gap:6px}
   .appbar-right .streak-pill,.appbar-right .chip{display:none}  /* shown in page body instead */
+  .appbar-right select{padding:6px 8px;font-size:12px;max-width:118px}
   .dash{padding:22px 0 40px} .dash-head h1{font-size:21px}
   .panel,.q-card{padding:20px} .onb-card{padding:24px} .onb{margin:28px auto}
   .q-hanzi{font-size:54px} .trial-banner{padding:22px}
   .lesson,.exam,.bill,.set{margin-top:24px}
   footer .wrap{flex-direction:column;gap:16px}
+  .write-wrap{padding:0 16px} .write-wrap .card{padding:20px}
+  .grid-cell{width:min(300px,70vw);height:min(300px,70vw);overflow:hidden}
+  .grid-cell .gz{font-size:40vw}
 }
