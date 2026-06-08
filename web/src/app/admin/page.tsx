@@ -43,7 +43,7 @@ export default function Admin() {
       </Centered>
     );
 
-  return <Console role={role} onLogout={() => { adm("/logout", { method: "POST" }).finally(() => setRole(null)); }} />;
+  return <Console role={role} onLogout={() => { adm("/logout", { method: "POST" }).finally(() => { window.location.href = "/"; }); }} />;
 }
 
 function Console({ role, onLogout }: { role: string; onLogout: () => void }) {

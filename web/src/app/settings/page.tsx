@@ -16,6 +16,7 @@ export default function Settings() {
   const { lang, setLang } = useI18n();
   const [me, setMe] = useState<{ name: string; email: string | null } | null>(null);
   useEffect(() => { api.getCurrentUser().then((u) => setMe({ name: u.name, email: u.email })).catch(() => setMe(null)); }, []);
+  const signOut = async () => { try { await api.logout(); } catch { /* ignore */ } window.location.href = "/"; };
   return (
     <AppShell active="settings">
       <div className="set">
@@ -59,6 +60,7 @@ export default function Settings() {
           <h3>Account &amp; data</h3>
           <div className="set-row"><div className="l"><b>Export my data</b><small>Progress, vocabulary and billing history (JSON/CSV)</small></div><button className="btn btn-ghost btn-sm">Export</button></div>
           <div className="set-row"><div className="l"><b>Change password</b><small>••••••••</small></div><button className="btn btn-ghost btn-sm">Change</button></div>
+          <div className="set-row"><div className="l"><b>Sign out</b><small>End your session and return to the homepage</small></div><button className="btn btn-ghost btn-sm" onClick={signOut}>Sign out →</button></div>
           <div className="set-row"><div className="l"><b style={{ color: "var(--red)" }}>Delete account</b><small>Permanently removes all data within 30 days</small></div><button className="btn btn-ghost btn-sm" style={{ color: "var(--red)", borderColor: "var(--red-soft)" }}>Delete…</button></div>
         </div>
       </div>
