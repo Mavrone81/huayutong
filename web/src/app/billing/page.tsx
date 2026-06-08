@@ -60,7 +60,7 @@ export default function Billing() {
                 <Row k="Payment method" v={<b>{sub.paymentMethod}</b>} last />
                 <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
                   <button className="btn btn-ghost btn-sm">Update card</button>
-                  {!canceled && <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)", borderColor: "var(--red-soft)" }} onClick={() => setModal(true)}>Cancel trial</button>}
+                  {!canceled && <button className="btn btn-ghost btn-sm" style={{ color: "var(--danger)", borderColor: "var(--danger-soft)" }} onClick={() => setModal(true)}>Cancel trial</button>}
                 </div>
               </div>
               <div className="card panel">
@@ -82,7 +82,7 @@ export default function Billing() {
           <h3>Cancel your free trial?</h3>
           <p>You&apos;ll keep full premium access until the trial ends, then drop to the Free plan. Your progress, streak and vocabulary are never deleted. You won&apos;t be charged anything.</p>
           <button className="btn btn-navy" style={{ width: "100%", justifyContent: "center" }} onClick={() => setModal(false)}>Keep my trial</button>
-          <button className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", marginTop: 10, color: "var(--red)" }} onClick={doCancel}>Cancel trial — no charge</button>
+          <button className="btn btn-ghost" style={{ width: "100%", justifyContent: "center", marginTop: 10, color: "var(--danger)" }} onClick={doCancel}>Cancel trial — no charge</button>
         </div>
       </div>
     </AppShell>

@@ -100,7 +100,7 @@ export default function Hsk() {
               <h3>Section scores — last mock</h3>
               {sections.length === 0 && <small style={{ color: "var(--ink-3)" }}>Take a mock exam to see your section breakdown.</small>}
               {sections.map((s, i) => (
-                <div key={i} className="srs-item"><span className="g" style={{ width: 90, flex: "none", fontWeight: 700, color: "var(--navy)" }}>{s.name}</span><div className="bar" style={{ flex: 1, margin: 0 }}><i style={{ width: `${s.score}%`, background: s.score < 60 ? "linear-gradient(90deg,var(--red),#E66B52)" : undefined }} /></div><span style={{ fontWeight: 800, fontSize: 13, width: 42, textAlign: "right" }}>{s.score}%</span></div>
+                <div key={i} className="srs-item"><span className="g" style={{ width: 90, flex: "none", fontWeight: 700, color: "var(--navy)" }}>{s.name}</span><div className="bar" style={{ flex: 1, margin: 0 }}><i style={{ width: `${s.score}%`, background: s.score < 60 ? "linear-gradient(90deg,var(--danger),#F0995E)" : undefined }} /></div><span style={{ fontWeight: 800, fontSize: 13, width: 42, textAlign: "right" }}>{s.score}%</span></div>
               ))}
               {weakest && <small style={{ color: "var(--ink-3)", display: "block", marginTop: 12 }}>{weakest.name} is your bottleneck — focus your reviews there.</small>}
             </div>

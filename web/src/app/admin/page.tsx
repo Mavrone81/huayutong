@@ -37,7 +37,7 @@ export default function Admin() {
         <p style={{ color: "var(--ink-2)", fontSize: 13.5, marginBottom: 20 }}>Restricted — staff only. RBAC enforced server-side.</p>
         <label className="field"><small>Email</small><input value={email} onChange={(e) => setEmail(e.target.value)} /></label>
         <label className="field"><small>Password</small><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && login()} /></label>
-        {loginErr && <p style={{ color: "var(--red)", fontSize: 13, fontWeight: 600 }}>{loginErr}</p>}
+        {loginErr && <p style={{ color: "var(--danger)", fontSize: 13, fontWeight: 600 }}>{loginErr}</p>}
         <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 8 }} onClick={login}>Sign in →</button>
         <p style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 16 }}>Dev logins (pw <b>admin12345</b>): admin@ (super) · finance@ (refunds/price) · ops@ (trials/users)</p>
       </Centered>
@@ -128,7 +128,7 @@ function Console({ role, onLogout }: { role: string; onLogout: () => void }) {
                 {ov.states.length === 0 && <small style={{ color: "var(--ink-3)" }}>No subscriptions yet.</small>}
                 {ov.states.map((s: any, i: number) => {
                   const tot = ov.states.reduce((a: number, x: any) => a + x.n, 0) || 1;
-                  return <div key={i} className="cov"><b>{s.status}</b><div className="bar"><i style={{ width: `${(s.n / tot) * 100}%`, background: s.status === "past_due" ? "var(--red)" : s.status === "trialing" ? "linear-gradient(90deg,var(--gold),#F2B95C)" : undefined }} /></div><span>{s.n}</span></div>;
+                  return <div key={i} className="cov"><b>{s.status}</b><div className="bar"><i style={{ width: `${(s.n / tot) * 100}%`, background: s.status === "past_due" ? "var(--danger)" : s.status === "trialing" ? "linear-gradient(90deg,var(--gold),#F2B95C)" : undefined }} /></div><span>{s.n}</span></div>;
                 })}
               </div>
             </div>
@@ -204,8 +204,8 @@ function Console({ role, onLogout }: { role: string; onLogout: () => void }) {
           <>
             <h1>Content &amp; localization</h1>
             <p className="sub">Publish gate: an item ships only when all 4 glosses (EN · TH · VI · MS) exist</p>
-            <div className="card panel" style={{ marginBottom: 18, borderLeft: `4px solid ${content.blocked.length ? "var(--red)" : "var(--teal)"}` }}>
-              <b style={{ color: content.blocked.length ? "var(--red)" : "var(--teal)" }}>
+            <div className="card panel" style={{ marginBottom: 18, borderLeft: `4px solid ${content.blocked.length ? "var(--danger)" : "var(--teal)"}` }}>
+              <b style={{ color: content.blocked.length ? "var(--danger)" : "var(--teal)" }}>
                 {content.blocked.length ? `⛔ ${content.blocked.length} items blocked from publishing` : `✓ All ${content.totalItems} published items are fully localized`}
               </b>
             </div>

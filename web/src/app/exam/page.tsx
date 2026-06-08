@@ -43,7 +43,7 @@ export default function Exam() {
     <Centered>
       <div style={{ fontSize: 48 }}>{result.score >= 60 ? "🎉" : "📚"}</div>
       <h2 style={{ color: "var(--navy)" }}>Mock exam scored</h2>
-      <div style={{ fontSize: 46, fontWeight: 800, color: result.score >= 60 ? "var(--teal)" : "var(--red)", margin: "8px 0" }}>{result.score}%</div>
+      <div style={{ fontSize: 46, fontWeight: 800, color: result.score >= 60 ? "var(--teal)" : "var(--danger)", margin: "8px 0" }}>{result.score}%</div>
       <p style={{ color: "var(--ink-2)", marginBottom: 14 }}>{result.score >= 60 ? "Pass — above the 60% threshold." : "Below the 60% pass mark — keep practising."}</p>
       <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 18 }}>
         {result.sections.map((s, i) => (

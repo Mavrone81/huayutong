@@ -220,7 +220,7 @@ export default function Onboarding() {
             </label>
           </div>
           <p style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 12 }}>Consent is per-purpose and never pre-ticked, in line with Vietnam PDPL, Thailand PDPA and Malaysia PDPA. We&apos;ll send a verification code to confirm your email or phone.</p>
-          {error && <p style={{ color: "var(--red)", fontSize: 13, marginTop: 10, fontWeight: 600 }}>{error}</p>}
+          {error && <p style={{ color: "var(--danger)", fontSize: 13, marginTop: 10, fontWeight: 600 }}>{error}</p>}
           <div className="onb-foot">
             <button className="skip" onClick={() => setStep(4)}>← Back</button>
             <button className="btn btn-primary" onClick={createAccount} disabled={busy} style={{ opacity: busy ? 0.6 : 1 }}>{busy ? "…" : t("reg_cta", "Create account →")}</button>
@@ -241,7 +241,7 @@ export default function Onboarding() {
           {provider === "stripe" && (
             <div id="stripe-payment-element" style={{ margin: "0 auto 18px", maxWidth: 380, textAlign: "left" }} />
           )}
-          {error && <p style={{ color: "var(--red)", fontSize: 13, marginBottom: 10, fontWeight: 600 }}>{error}</p>}
+          {error && <p style={{ color: "var(--danger)", fontSize: 13, marginBottom: 10, fontWeight: 600 }}>{error}</p>}
           <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={startTrial}>{busy ? "Starting…" : "Add card & start learning →"}</button>
           <p style={{ marginTop: 14, fontSize: 12, color: "var(--ink-3)" }}>🔒 Secured by Stripe — your card details never touch our servers</p>
         </div>
