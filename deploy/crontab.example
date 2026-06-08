@@ -1,0 +1,6 @@
+# Add to root's crontab:  sudo crontab -e
+# Runs every minute; flock prevents overlapping deploys; output is timestamped
+# by the script and appended to the deploy log.
+#
+# Adjust the path to match REPO_DIR in deploy.env.
+* * * * * flock -n /tmp/mandamix-deploy.lock /opt/mandamix/huayutong/deploy/auto-deploy.sh >> /var/log/mandamix-deploy.log 2>&1

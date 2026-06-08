@@ -14,3 +14,6 @@ pg-*.jpg
 
 # OS
 .DS_Store
+
+# server-only deploy config
+deploy/deploy.env
