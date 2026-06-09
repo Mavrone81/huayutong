@@ -41,7 +41,7 @@ export default function Landing() {
 
       <div className="wrap hero">
         <div>
-          <span className="chip red" style={{ marginBottom: 18 }}>{t("hero_chip", "✦ Aligned to the new HSK 3.0 standard")}</span>
+          <span className="chip navy" style={{ marginBottom: 18 }}>{t("hero_chip", "✦ Aligned to the new HSK 3.0 standard")}</span>
           <h1 dangerouslySetInnerHTML={{ __html: t("hero_h1", "Learn Mandarin <em>in your own language.</em>") }} />
           <p className="lead">{t("hero_p", "The first self-paced Mandarin course taught natively in Thai, Vietnamese, Bahasa Melayu and English — with a clear path from zero to HSK certification.")}</p>
           <div className="langs">
