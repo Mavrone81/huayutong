@@ -15,6 +15,7 @@ free trial ($5.99/mo or $44.99/yr after) and recurring credit-card billing.
 | Environment config | [`.env.example`](.env.example) |
 | Build-documents checklist (incl. BRD advice) | [`docs/04_documents_checklist.md`](docs/04_documents_checklist.md) |
 | Launch gaps & compliance workstreams | [`docs/05_launch_gaps_and_compliance.md`](docs/05_launch_gaps_and_compliance.md) |
+| Implementation status (PRD → code) | [`docs/07_implementation_status.md`](docs/07_implementation_status.md) |
 | Web app design prototype (15 screens) | [`design/mandamix_webapp_design.html`](design/mandamix_webapp_design.html) |
 
 ## Regenerating the PRD
@@ -33,4 +34,15 @@ node build_prd.js          # writes MandaMix_PRD.docx
 cp .env.example .env        # fill in secrets
 createdb mandamix
 psql mandamix < db/schema.sql
+for m in db/migrations/*.sql; do psql mandamix -f "$m"; done   # apply deltas (idempotent)
+psql mandamix < db/seed.sql # plans, prices, admin
+```
+
+## Web app & tests
+
+```bash
+cd web
+npm ci
+npm run dev                 # http://localhost:3000
+npm test                    # unit suite; integration suite runs when DATABASE_URL is set
 ```
