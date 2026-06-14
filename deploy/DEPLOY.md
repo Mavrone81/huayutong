@@ -28,13 +28,42 @@ Safe by design: `git reset --hard` only moves **code**; `web/.env.local`, `node_
 and the Docker DB volume are git-ignored / untouched. **No `docker compose down -v`, no
 `volume rm`** — the DB is never recreated.
 
+## Database migrations (manual — NOT auto-applied)
+`db/schema.sql` is the full fresh-install schema; the deploy script never touches
+the DB. Existing databases must apply new deltas in order after pulling:
+```bash
+for m in /root/huayutong/db/migrations/*.sql; do
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$m"     # all idempotent (IF NOT EXISTS / OR REPLACE)
+done
+```
+Current deltas: `0002` (verification_tokens, payment_methods.fingerprint) ·
+`0003` (audit_logs append-only trigger, trial_days default → 30). Application code
+degrades gracefully if a delta is unapplied, but the related features stay dormant.
+
+## Background jobs (billing & notifications)
+Two internal endpoints are driven by cron, authenticated with the
+`x-internal-secret: $INTERNAL_BILLING_SECRET` header:
+```bash
+# trial→charge, renewals, dunning retries/downgrade  (every 15 min)
+*/15 * * * * curl -fsS -X POST localhost:20001/api/v1/internal/run-billing \
+  -H "x-internal-secret: $INTERNAL_BILLING_SECRET" >> /var/log/mandamix-billing.log 2>&1
+# flush due reminders / receipts / dunning prompts     (every 5 min)
+*/5  * * * * curl -fsS -X POST localhost:20001/api/v1/internal/run-notifications \
+  -H "x-internal-secret: $INTERNAL_BILLING_SECRET" >> /var/log/mandamix-notify.log 2>&1
+```
+The dispatcher currently marks notifications sent; wire the email/push provider for
+real delivery.
+
 ## Verify
 ```bash
 tail -f /var/log/mandamix-deploy.log
-git -C /root/huayutong rev-parse --short HEAD          # == the pushed commit
-curl -s localhost:20001/api/v1/version                  # {"status":"ok",...}
+git -C /root/huayutong rev-parse --short HEAD          # == the pushed commit (latest: see GitHub main)
+curl -s localhost:20001/api/v1/version                  # {"status":"ok",...} (static marker, not a SHA)
 pm2 ls                                                   # huayutong-web online; others untouched
+cd /root/huayutong/web && npm test                      # unit + integration (needs DATABASE_URL)
 ```
+> The `/version` marker is static, so it does **not** confirm which commit is live —
+> use `git rev-parse HEAD` and the deploy log for that.
 
 ## Rollback
 ```bash
