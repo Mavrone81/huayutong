@@ -1,4 +1,5 @@
 import { query, one } from "./db";
+import { isPremium } from "./entitlement";
 
 export class HskError extends Error {
   status: number; code: string;
@@ -8,6 +9,11 @@ export class HskError extends Error {
 async function userLang(userId: string): Promise<string> {
   const u = await one<{ ui_language: string }>(`SELECT ui_language FROM users WHERE id = $1`, [userId]);
   return u?.ui_language || "en";
+}
+
+// HSK exam prep (mock exams, study plans, readiness) is a premium feature (PRD §4.2/§5.4).
+async function requirePremium(userId: string) {
+  if (!(await isPremium(userId))) throw new HskError(402, "locked", "HSK exam prep requires Premium");
 }
 
 export async function activePlan(userId: string) {
@@ -40,6 +46,7 @@ async function computeReadiness(userId: string, target: number) {
 }
 
 export async function getReadiness(userId: string) {
+  await requirePremium(userId);
   const plan = await activePlan(userId);
   if (!plan) return { hasPlan: false };
   const r = await computeReadiness(userId, plan.target_level);
@@ -68,6 +75,7 @@ export async function getReadiness(userId: string) {
 }
 
 export async function listMockExams(userId: string) {
+  await requirePremium(userId);
   return query<any>(
     `SELECT me.id, me.hsk_level, me.title_key, me.duration_minutes,
             (SELECT max(score) FROM mock_exam_attempts a WHERE a.mock_exam_id = me.id AND a.user_id = $1 AND a.state = 'scored') AS best_score,
@@ -78,6 +86,7 @@ export async function listMockExams(userId: string) {
 }
 
 export async function startAttempt(userId: string, mockExamId: string) {
+  await requirePremium(userId);
   const me = await one<{ id: string }>(`SELECT id FROM mock_exams WHERE id = $1 AND is_published`, [mockExamId]);
   if (!me) throw new HskError(404, "not_found", "Mock exam not found");
   const a = await one<{ id: string }>(
@@ -90,6 +99,7 @@ export async function startAttempt(userId: string, mockExamId: string) {
 function shuffle<T>(arr: T[]): T[] { return arr.map((v) => [Math.random(), v] as [number, T]).sort((a, b) => a[0] - b[0]).map(([, v]) => v); }
 
 export async function getAttempt(userId: string, attemptId: string) {
+  await requirePremium(userId);
   const att = await one<{ id: string; mock_exam_id: string; state: string }>(
     `SELECT id, mock_exam_id, state FROM mock_exam_attempts WHERE id = $1 AND user_id = $2`,
     [attemptId, userId]
@@ -124,6 +134,7 @@ export async function getAttempt(userId: string, attemptId: string) {
 }
 
 export async function submitAttempt(userId: string, attemptId: string, responses: { itemId: string; chosenGloss: string; section: string }[]) {
+  await requirePremium(userId);
   const att = await one<{ id: string; state: string }>(`SELECT id, state FROM mock_exam_attempts WHERE id = $1 AND user_id = $2`, [attemptId, userId]);
   if (!att) throw new HskError(404, "not_found", "Attempt not found");
   if (att.state === "scored") throw new HskError(409, "already_scored", "Attempt already submitted");
@@ -170,6 +181,7 @@ export async function submitAttempt(userId: string, attemptId: string, responses
 
 // ---- study plans ----
 export async function getActivePlan(userId: string) {
+  await requirePremium(userId);
   const plan = await activePlan(userId);
   if (!plan) return { plan: null };
   const tasks = await query<any>(
@@ -180,6 +192,7 @@ export async function getActivePlan(userId: string) {
 }
 
 export async function createPlan(userId: string, targetLevel: number, examDate: string | null) {
+  await requirePremium(userId);
   if (targetLevel < 1 || targetLevel > 9) throw new HskError(400, "invalid_level", "targetLevel must be 1–9");
   await query(`UPDATE study_plans SET is_active = false WHERE user_id = $1 AND is_active`, [userId]);
   const plan = await one<{ id: string }>(
@@ -204,6 +217,7 @@ export async function createPlan(userId: string, targetLevel: number, examDate: 
 }
 
 export async function toggleTask(userId: string, taskId: string) {
+  await requirePremium(userId);
   const row = await one<{ is_done: boolean }>(
     `UPDATE study_plan_tasks SET is_done = NOT is_done
       WHERE id = $1 AND study_plan_id IN (SELECT id FROM study_plans WHERE user_id = $2) RETURNING is_done`,
