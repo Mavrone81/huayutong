@@ -177,13 +177,36 @@ export async function issueRefund(ctx: AdminCtx, customerId: string) {
   return { ok: true, amountMinor: pay.amount_minor };
 }
 
+// Overrides below a floor (default 50% of list price) require finance approval (PRD §5.9).
+const PRICE_OVERRIDE_FLOOR_PCT = Number(process.env.PRICE_OVERRIDE_FLOOR_PCT || 50);
+
 export async function overridePrice(ctx: AdminCtx, customerId: string, amountMinor: number, reason: string) {
   requirePerm(ctx, "price.override");
   if (!reason || !reason.trim()) throw new AdminError(400, "reason_required", "A reason is required");
-  const sub = await latestSub(customerId);
+  if (!Number.isFinite(amountMinor) || amountMinor < 0) throw new AdminError(400, "invalid_amount", "Amount must be a non-negative integer");
+
+  const sub = await one<{ id: string; plan_id: string; currency: string | null }>(
+    `SELECT id, plan_id, currency FROM subscriptions WHERE customer_id=$1 ORDER BY created_at DESC LIMIT 1`,
+    [customerId]
+  );
   if (!sub) throw new AdminError(404, "no_subscription", "No subscription");
+
+  const list = await one<{ amount_minor: number }>(
+    `SELECT amount_minor FROM prices WHERE plan_id=$1 AND currency=$2`,
+    [sub.plan_id, sub.currency || process.env.DEFAULT_CURRENCY || "USD"]
+  );
+  let belowFloor = false;
+  if (list?.amount_minor) {
+    const floor = Math.round((list.amount_minor * PRICE_OVERRIDE_FLOOR_PCT) / 100);
+    belowFloor = amountMinor < floor;
+    // Below the floor requires a finance_admin; ops/general admins are blocked.
+    if (belowFloor && ctx.role !== "finance_admin") {
+      throw new AdminError(403, "below_floor", `Overrides below ${PRICE_OVERRIDE_FLOOR_PCT}% of list (${list.amount_minor}) require finance approval`);
+    }
+  }
+
   await query(`UPDATE subscriptions SET price_override_minor=$2, updated_at=now() WHERE id=$1`, [sub.id, amountMinor]);
-  await audit(ctx.adminId, "price.override", "customer", customerId, { amountMinor, reason });
+  await audit(ctx.adminId, "price.override", "customer", customerId, { amountMinor, reason, listMinor: list?.amount_minor ?? null, belowFloor });
   return { ok: true };
 }
 

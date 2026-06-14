@@ -84,6 +84,19 @@ CREATE TABLE sessions (
 );
 CREATE INDEX idx_sessions_user ON sessions(user_id);
 
+-- Hashed, expiring tokens for email/phone verification and password reset.
+CREATE TABLE verification_tokens (
+    id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id            uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    purpose            text NOT NULL,                     -- 'email_verify' | 'password_reset'
+    token_hash         text NOT NULL,
+    expires_at         timestamptz NOT NULL,
+    consumed_at        timestamptz,
+    created_at         timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_verif_lookup ON verification_tokens(token_hash, purpose);
+CREATE INDEX idx_verif_user   ON verification_tokens(user_id, purpose);
+
 -- =====================================================================
 -- BILLING
 -- =====================================================================
@@ -122,6 +135,7 @@ CREATE TABLE payment_methods (
     customer_id        uuid NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
     type               pay_method_type NOT NULL,
     psp_payment_method_id text,                           -- token; NEVER store PAN
+    fingerprint        text,                              -- PSP card fingerprint (trial anti-abuse)
     brand              text,                              -- visa/master/...
     last4              char(4),
     exp_month          int,
@@ -130,6 +144,7 @@ CREATE TABLE payment_methods (
     created_at         timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_pm_customer ON payment_methods(customer_id);
+CREATE INDEX idx_pm_fingerprint ON payment_methods(fingerprint);
 
 CREATE TABLE subscriptions (
     id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
