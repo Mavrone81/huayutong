@@ -115,7 +115,7 @@ CREATE TABLE plans (
     code               text UNIQUE NOT NULL,              -- 'free','premium_monthly','premium_annual'
     name               text NOT NULL,
     interval           plan_interval,                     -- null for free
-    trial_days         int NOT NULL DEFAULT 5,
+    trial_days         int NOT NULL DEFAULT 30,
     is_active          boolean NOT NULL DEFAULT true,
     psp_product_id     text
 );
@@ -461,6 +461,14 @@ CREATE TABLE audit_logs (
     metadata           jsonb,
     created_at         timestamptz NOT NULL DEFAULT now()
 );
+
+-- Append-only: reject any UPDATE/DELETE so the audit trail is immutable.
+CREATE OR REPLACE FUNCTION audit_logs_no_mutate() RETURNS trigger AS $$
+BEGIN RAISE EXCEPTION 'audit_logs is append-only'; END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER trg_audit_logs_immutable
+    BEFORE UPDATE OR DELETE ON audit_logs
+    FOR EACH ROW EXECUTE FUNCTION audit_logs_no_mutate();
 
 CREATE TABLE analytics_events (
     id                 bigserial PRIMARY KEY,
