@@ -162,19 +162,27 @@ export async function extendTrial(ctx: AdminCtx, customerId: string, days: numbe
   return { ok: true };
 }
 
-export async function issueRefund(ctx: AdminCtx, customerId: string) {
+export async function issueRefund(ctx: AdminCtx, customerId: string, amountMinor?: number, reason?: string) {
   requirePerm(ctx, "refund.issue");
   const pay = await one<{ id: string; psp_payment_intent_id: string; amount_minor: number }>(
     `SELECT id, psp_payment_intent_id, amount_minor FROM payments WHERE customer_id=$1 AND status='succeeded' ORDER BY created_at DESC LIMIT 1`,
     [customerId]
   );
   if (!pay) throw new AdminError(404, "no_payment", "No charge to refund");
-  const r = await getPsp().refund({ pspPaymentId: pay.psp_payment_intent_id, amountMinor: pay.amount_minor });
+
+  // Support partial refunds: never refund more than the unrefunded remainder.
+  const refunded = (await one<{ sum: number }>(`SELECT COALESCE(SUM(amount_minor),0)::int AS sum FROM refunds WHERE payment_id=$1`, [pay.id]))!.sum;
+  const remaining = pay.amount_minor - refunded;
+  const amount = amountMinor == null ? remaining : Math.round(amountMinor);
+  if (amount <= 0 || amount > remaining) throw new AdminError(400, "invalid_amount", `Refund must be between 1 and ${remaining} (already refunded ${refunded})`);
+
+  const r = await getPsp().refund({ pspPaymentId: pay.psp_payment_intent_id, amountMinor: amount });
   await query(`INSERT INTO refunds (payment_id, psp_refund_id, amount_minor, reason, created_by) VALUES ($1,$2,$3,$4,$5)`,
-    [pay.id, r.pspRefundId, pay.amount_minor, "admin refund", ctx.adminId]);
-  await query(`UPDATE payments SET status='refunded' WHERE id=$1`, [pay.id]);
-  await audit(ctx.adminId, "refund.issue", "customer", customerId, { amountMinor: pay.amount_minor, pspRefundId: r.pspRefundId });
-  return { ok: true, amountMinor: pay.amount_minor };
+    [pay.id, r.pspRefundId, amount, reason?.trim() || "admin refund", ctx.adminId]);
+  const partial = amount < remaining;
+  if (!partial) await query(`UPDATE payments SET status='refunded' WHERE id=$1`, [pay.id]); // fully refunded only
+  await audit(ctx.adminId, "refund.issue", "customer", customerId, { amountMinor: amount, partial, remainingAfter: remaining - amount, pspRefundId: r.pspRefundId });
+  return { ok: true, amountMinor: amount, partial, remainingAfter: remaining - amount };
 }
 
 // Overrides below a floor (default 50% of list price) require finance approval (PRD §5.9).

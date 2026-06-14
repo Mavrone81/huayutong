@@ -11,6 +11,17 @@ export class LearnError extends Error {
   }
 }
 
+// Free tier is capped at a few lessons per day (PRD §4.4); premium is unlimited.
+const FREE_DAILY_LESSON_LIMIT = Number(process.env.FREE_DAILY_LESSON_LIMIT || 3);
+
+async function lessonsCompletedToday(userId: string): Promise<number> {
+  return (await one<{ n: number }>(
+    `SELECT count(*)::int AS n FROM lesson_progress
+      WHERE user_id = $1 AND state = 'completed' AND completed_at::date = current_date`,
+    [userId]
+  ))!.n;
+}
+
 async function userLang(userId: string): Promise<string> {
   const u = await one<{ ui_language: string }>(`SELECT ui_language FROM users WHERE id = $1`, [userId]);
   return u?.ui_language || "en";
@@ -85,11 +96,16 @@ export async function dashboardProgress(userId: string) {
     [userId, lang]
   )).map((r) => ({ hanzi: r.hanzi, gloss: `${r.pinyin} · ${r.gloss}`, due: dueLabel(r.due_at) }));
 
+  const lessonsToday = premium ? 0 : await lessonsCompletedToday(userId);
+
   return {
     xp, streak: streak.current_count, longestStreak: streak.longest_count,
     reviewsDue, goalMinutes: goal.target_minutes, goalDone: goal.completed_minutes,
     hsk1Readiness: totalItems ? Math.round((learned / totalItems) * 100) : 0,
     nextLessonId, skills: skillDTO, srs,
+    tier: ent.tier,
+    dailyLessonLimit: premium ? null : FREE_DAILY_LESSON_LIMIT,
+    lessonsToday,
   };
 }
 
@@ -128,8 +144,18 @@ export async function completeLesson(userId: string, lessonId: string, score = 1
   const ent = await getEntitlement(userId);
   if (lesson.is_premium && ent.tier !== "premium") throw new LearnError(402, "locked", "This lesson requires Premium");
 
-  const prev = await one<{ state: string }>(`SELECT state FROM lesson_progress WHERE user_id = $1 AND lesson_id = $2`, [userId, lessonId]);
+  const prev = await one<{ state: string; completed_today: boolean }>(
+    `SELECT state, (completed_at::date = current_date) AS completed_today FROM lesson_progress WHERE user_id = $1 AND lesson_id = $2`,
+    [userId, lessonId]
+  );
   const firstTime = !prev || prev.state !== "completed";
+
+  // Enforce the free-tier daily cap for new (not-yet-done-today) lessons.
+  if (ent.tier !== "premium" && !prev?.completed_today) {
+    if ((await lessonsCompletedToday(userId)) >= FREE_DAILY_LESSON_LIMIT) {
+      throw new LearnError(429, "daily_limit_reached", `The free plan is limited to ${FREE_DAILY_LESSON_LIMIT} lessons per day — upgrade for unlimited access.`);
+    }
+  }
 
   await query(
     `INSERT INTO lesson_progress (user_id, lesson_id, state, score, completed_at)
