@@ -70,3 +70,28 @@ export async function rotateFromRefresh(refresh: string) {
 export async function revokeSession(refresh: string) {
   await query(`UPDATE sessions SET revoked_at = now() WHERE refresh_token_hash = $1`, [sha(refresh)]);
 }
+
+// ---- Verification / password-reset tokens (opaque token, hash stored) ----
+export type TokenPurpose = "email_verify" | "password_reset";
+
+export async function createVerificationToken(userId: string, purpose: TokenPurpose, ttlSeconds: number): Promise<string> {
+  const token = crypto.randomBytes(32).toString("base64url");
+  const expires = new Date(Date.now() + ttlSeconds * 1000);
+  await query(
+    `INSERT INTO verification_tokens (user_id, purpose, token_hash, expires_at) VALUES ($1, $2, $3, $4)`,
+    [userId, purpose, sha(token), expires]
+  );
+  return token;
+}
+
+export async function consumeVerificationToken(token: string, purpose: TokenPurpose): Promise<string | null> {
+  const row = await one<{ id: string; user_id: string }>(
+    `SELECT id, user_id FROM verification_tokens
+      WHERE token_hash = $1 AND purpose = $2 AND consumed_at IS NULL AND expires_at > now()
+      ORDER BY created_at DESC LIMIT 1`,
+    [sha(token), purpose]
+  );
+  if (!row) return null;
+  await query(`UPDATE verification_tokens SET consumed_at = now() WHERE id = $1`, [row.id]);
+  return row.user_id;
+}
