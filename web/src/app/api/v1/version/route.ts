@@ -3,11 +3,14 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Lightweight health/version endpoint — also used to verify CI/CD auto-deploy.
+// Health/version endpoint. `commit` is baked in at build time (see next.config.mjs)
+// so it reflects exactly which code is live — use it to verify CI/CD auto-deploy.
 export function GET() {
   return NextResponse.json({
     status: "ok",
     service: "mandamix-web",
+    commit: process.env.GIT_SHA || "unknown",
+    builtAt: process.env.BUILD_TIME || null,
     marker: "cicd-live-2026-06-08",
   });
 }
