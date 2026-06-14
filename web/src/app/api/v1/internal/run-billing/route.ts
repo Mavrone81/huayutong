@@ -74,6 +74,17 @@ export async function POST(req: Request) {
         [s.id, now, periodEnd]
       );
       results.push({ id: s.id, result: "charged", amount_minor: s.amount_minor });
+    } else if (charge.status === "requires_action") {
+      // SCA/3DS: the charge needs customer authentication, not a decline. Record it
+      // as pending and move to past_due so the learner keeps grace-window access
+      // (PRD §5.5) while they complete authentication — never treated as a failure.
+      await query(
+        `INSERT INTO payments (customer_id, payment_method_id, psp_payment_intent_id, status, amount_minor, currency)
+         VALUES ($1, $2, $3, 'requires_action', $4, $5)`,
+        [s.customer_id, pm.pm_id, charge.pspPaymentId, s.amount_minor, s.currency]
+      );
+      await query(`UPDATE subscriptions SET status = 'past_due', updated_at = now() WHERE id = $1`, [s.id]);
+      results.push({ id: s.id, result: "requires_action" });
     } else {
       await query(
         `INSERT INTO payments (customer_id, psp_payment_intent_id, status, amount_minor, currency, failure_code)
