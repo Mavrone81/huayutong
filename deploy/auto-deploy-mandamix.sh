@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# MandaMix auto-deploy (PM2 app + Dockerised DB).
-# Cron runs this every minute via flock. Pulls origin/main; rebuilds the Next
-# app ONLY when web/ changes; reloads PM2. CODE ONLY: web/.env.local,
-# node_modules, .next and the Docker DB volume (mmdata) are git-ignored /
-# untouched. The database is never touched by this script.
+# MandaMix auto-deploy — Dockerised stack (web + db via docker compose).
+# Cron runs this every minute via flock. It pulls origin/main and, ONLY when
+# web/ changed, rebuilds & restarts the `web` service. CODE ONLY:
+#   - web/.env.local (secrets) is git-ignored and never touched
+#   - the Postgres named volume `mmdata` is never recreated (no down -v / volume rm)
+#   - the `db` service is left running untouched (we only act on `web`)
+# cron has a minimal PATH, so set an explicit one (docker/git live in /usr/bin here).
 set -euo pipefail
-export PATH=/root/.nvm/versions/node/v20.19.4/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 REPO=/root/huayutong
-APP="$REPO/web"
-APPNAME=huayutong-web
+WEBDIR="$REPO/web"
 TS(){ date '+%F %T'; }
 
 cd "$REPO"
@@ -22,17 +23,15 @@ echo "[$(TS)] new commit ${REMOTE:0:7} (was ${LOCAL:0:7}) — deploying"
 CHANGED=$(git --no-pager diff --name-only "$LOCAL" "$REMOTE")
 echo "$CHANGED" | sed 's/^/      /'
 
-git reset --hard origin/main          # code only; secrets/data untouched
+git reset --hard origin/main          # CODE only; secrets/data untouched
 
 if echo "$CHANGED" | grep -qE '^web/'; then
-  cd "$APP"
-  # reinstall deps only when they change (npm ci is a full reinstall)
-  if echo "$CHANGED" | grep -qE '^web/package(-lock)?\.json$'; then
-    echo "[$(TS)] deps changed -> npm ci"; npm ci
-  fi
-  echo "[$(TS)] building Next app"; npm run build
-  pm2 reload "$APPNAME"
-  echo "[$(TS)] deploy complete (rebuilt) -> $(git -C "$REPO" rev-parse --short HEAD)"
+  GIT_SHA=$(git rev-parse --short HEAD)
+  echo "[$(TS)] web/ changed -> rebuild + restart ONLY the web service (GIT_SHA=$GIT_SHA)"
+  cd "$WEBDIR"
+  GIT_SHA=$GIT_SHA docker compose up -d --build web
+  docker image prune -f >/dev/null   # drop dangling layers so the disk doesn't fill
+  echo "[$(TS)] deploy complete -> $(git -C "$REPO" rev-parse --short HEAD)"
 else
-  echo "[$(TS)] no web/ changes — code synced, skipped build/reload -> $(git rev-parse --short HEAD)"
+  echo "[$(TS)] no web/ changes — code synced, skipped rebuild -> $(git rev-parse --short HEAD)"
 fi
