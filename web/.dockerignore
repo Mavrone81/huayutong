@@ -1,0 +1,20 @@
+# Keep the build context small and never bake secrets/build artifacts into the image.
+node_modules
+.next
+out
+build
+.git
+.gitignore
+Dockerfile
+.dockerignore
+# Secrets — provided at runtime via compose env_file, never copied into the image
+.env
+.env.local
+.env*.local
+# Misc
+*.bak
+*.bak-backup
+*.tsbuildinfo
+.DS_Store
+npm-debug.log*
+README.md

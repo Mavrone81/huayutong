@@ -1,15 +1,41 @@
-# Local Postgres for MandaMix dev. Schema + seed auto-load on first boot.
-# Usage:  docker compose up -d   (from the web/ folder)
+# MandaMix production stack: Next.js app (web) + Postgres (db).
+# Deploy (rebuild only the app, leave the DB + its volume untouched):
+#   GIT_SHA=$(git rev-parse --short HEAD) docker compose up -d --build web
+# Persistent data lives in the named volume `mmdata` and is NEVER recreated by a
+# deploy. Do not run `docker compose down -v` or `docker volume rm` here.
 services:
+  web:
+    build:
+      context: .
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+    container_name: mandamix-web
+    restart: unless-stopped
+    # Runtime secrets (JWT/Stripe/etc.) come from the server-only, git-ignored file.
+    env_file:
+      - .env.local
+    environment:
+      # Reach Postgres over the compose network — overrides the host-style URL in
+      # .env.local (localhost:20002 only works for processes on the host, not in a container).
+      DATABASE_URL: postgresql://mandamix:mandamix@db:5432/mandamix
+    # nginx terminates TLS and proxies to 127.0.0.1:20001 — bind there, not publicly.
+    ports:
+      - "127.0.0.1:20001:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
   db:
     image: postgres:16
     container_name: mandamix-db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: mandamix
       POSTGRES_PASSWORD: mandamix
       POSTGRES_DB: mandamix
+    # Bound to localhost only — not exposed to the public internet.
     ports:
-      - "20002:5432"
+      - "127.0.0.1:20002:5432"
     volumes:
       - mmdata:/var/lib/postgresql/data
       - ../db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
