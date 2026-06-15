@@ -11,6 +11,6 @@ export function GET() {
     service: "mandamix-web",
     commit: process.env.GIT_SHA || "unknown",
     builtAt: process.env.BUILD_TIME || null,
-    marker: "cicd-docker-verify-2026-06-15",
+    marker: "cicd-auto-unattended-2026-06-15",
   });
 }
