@@ -334,6 +334,16 @@ footer .wrap{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap}
   .swatches{grid-template-columns:repeat(3,1fr)}
   .adm{grid-template-columns:1fr} .adm-side{display:flex;overflow-x:auto} .kpis{grid-template-columns:1fr 1fr}
   .appnav{display:none}
+  /* tablet (641–900): the landing nav's centre links overflowed the viewport because
+     they only collapsed at ≤640. Collapse them at the tablet tier too. */
+  .land-nav .links{display:none}
+}
+
+/* Hero badges overhang the card (right:-10/left:-22) only on wide screens where the
+   centred .wrap leaves margin room; below 1240 that overhang spills past the viewport,
+   so pin them flush. (Targets 1280+ keep the float effect.) */
+@media (max-width:1239px){
+  .hv-float.f1{right:0} .hv-float.f2{left:0}
 }
 
 /* ===== responsive grid utilities (override inline grids via classes) ===== */
@@ -351,7 +361,10 @@ footer .wrap{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap}
   .resp-2col,.resp-asym,.resp-asym-r,.resp-content{grid-template-columns:1fr}
   .mobile-tabs{position:fixed;bottom:0;left:0;right:0;z-index:60;display:flex;justify-content:space-between;
     background:#fff;border-top:1px solid var(--line);padding:8px 2px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -2px 14px rgba(22,50,79,.08)}
-  .mobile-tabs a{flex:1;min-width:0;display:grid;gap:3px;justify-items:center;font-size:10px;font-weight:700;color:var(--ink-3);text-decoration:none;padding:2px 1px}
+  .mobile-tabs a{flex:1;min-width:0;min-height:46px;align-content:center;display:grid;gap:3px;justify-items:center;font-size:10px;font-weight:700;color:var(--ink-3);text-decoration:none;padding:2px 1px}
+  /* ≥44px tap targets on touch (avatar/bell were 36/31px) */
+  .appbar-right .avatar{width:42px;height:42px}
+  .appbar-right .bell{padding:11px}
   .mobile-tabs a .ti{font-size:20px;line-height:1}
   .mobile-tabs a span:last-child{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .mobile-tabs a.on{color:var(--red)}
